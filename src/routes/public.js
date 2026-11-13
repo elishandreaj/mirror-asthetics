@@ -24,17 +24,19 @@ r.get('/site', ah(async (req, res) => {
     query('SELECT id, name FROM categories WHERE active ORDER BY sort, id'),
     query('SELECT id, category_id, name, description, duration_min, price, featured FROM treatments WHERE active ORDER BY sort, id'),
     query('SELECT id, name, role, credentials, specialties, photo_id, bookable FROM practitioners WHERE active ORDER BY sort, id'),
-    query('SELECT id, title, treatment_label, caption, before_id, after_id FROM gallery WHERE published ORDER BY sort, id DESC'),
+    query(`SELECT g.id, g.title, g.treatment_label, g.caption, g.sessions, g.before_id, g.after_id, g.treatment_id, t.name AS treatment_name, t.category_id
+           FROM gallery g LEFT JOIN treatments t ON t.id = g.treatment_id WHERE g.published ORDER BY g.sort, g.id DESC`),
     query('SELECT id, chip, title, body FROM promos WHERE active ORDER BY sort, id'),
     query('SELECT id, quote, author FROM testimonials WHERE active ORDER BY sort, id'),
-    query('SELECT id, question, answer FROM faqs WHERE active ORDER BY sort, id'),
+    query('SELECT id, topic, question, answer FROM faqs WHERE active ORDER BY sort, id'),
   ]);
   res.set('Cache-Control', 'no-cache');
   res.json({
-    site, booking: publicBookingCfg(booking),
+    site: { ...site, heroImage: mediaUrl(site.heroImageId) }, booking: publicBookingCfg(booking),
     categories: cats.rows.map(c => ({ ...c, treatments: trs.rows.filter(t => t.category_id === c.id) })).filter(c => c.treatments.length),
     practitioners: prs.rows.map(p => ({ ...p, photo: mediaUrl(p.photo_id), photo_id: undefined })),
-    gallery: gal.rows.map(g => ({ id: g.id, title: g.title, treatment: g.treatment_label, caption: g.caption, before: mediaUrl(g.before_id), after: mediaUrl(g.after_id) })),
+    gallery: gal.rows.map(g => ({ id: g.id, title: g.title, treatment: g.treatment_name || g.treatment_label, treatmentId: g.treatment_id, categoryId: g.category_id,
+      caption: g.caption, sessions: g.sessions, before: mediaUrl(g.before_id), after: mediaUrl(g.after_id) })),
     promos: pro.rows, testimonials: tes.rows, faqs: faq.rows,
   });
 }));
@@ -76,8 +78,9 @@ r.post('/bookings', bookingLimiter, upload.single('photo'), ah(async (req, res) 
   const { data: client, errors } = validateClient(body.client || {});
   if (Object.keys(errors).length) throw new HttpError(422, 'Please fix the highlighted fields.', errors);
   const photoId = req.file ? await saveImage(req.file.buffer, { isPrivate: true, maxSize: 1400 }) : null;
-  const b = await B.create({ type: body.type, treatmentIds: body.treatmentIds, practitionerId: body.prac, date: body.date, start: body.start, client, photoId });
-  mailer.sendTemplate('received', b); mailer.notifyClinic(b); // fire-and-forget
+  const b = await B.create({ type: body.type, treatmentIds: body.treatmentIds, practitionerId: body.prac, date: body.date, start: body.start, client, photoId,
+    status: cfg.autoConfirm ? 'confirmed' : 'pending' });
+  mailer.sendTemplate(cfg.autoConfirm ? 'confirmed' : 'received', b); mailer.notifyClinic(b); // fire-and-forget
   res.status(201).json({ booking: publicView(b) });
 }));
 

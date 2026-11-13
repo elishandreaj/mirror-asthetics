@@ -5,7 +5,7 @@ const helmet = require('helmet');
 const compression = require('compression');
 const cookieParser = require('cookie-parser');
 const { query, migrate, pool } = require('./db');
-const { seedContent, seedAdmin } = require('./seed');
+const { seedContent, seedAdmin, upgradeContent } = require('./seed');
 const reminders = require('./lib/reminders');
 
 const app = express();
@@ -19,7 +19,8 @@ app.use(helmet({
       'img-src': ["'self'", 'data:', 'blob:'],
       'frame-src': ['https://www.google.com', 'https://maps.google.com'], // Google Maps embed
       'script-src': ["'self'"],
-      'style-src': ["'self'", "'unsafe-inline'"],
+      'style-src': ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
+      'font-src': ["'self'", 'https://fonts.gstatic.com', 'data:'],
       'connect-src': ["'self'"],
       'upgrade-insecure-requests': config.isProd ? [] : null,
     },
@@ -30,6 +31,7 @@ app.use(compression());
 app.use(cookieParser());
 app.use(express.json({ limit: '200kb' }));
 
+app.get('/ping', (req, res) => res.set('Cache-Control', 'no-store').send('ok')); // keep-awake URL (no database hit)
 app.get('/healthz', async (req, res) => { try { await query('SELECT 1'); res.json({ ok: true }); } catch { res.status(503).json({ ok: false }); } });
 
 // Public images (gallery, team photos). Private images (client photos) are only served via /api/admin/media.
@@ -48,8 +50,16 @@ app.use('/api', require('./routes/public'));
 app.use('/api', (req, res) => res.status(404).json({ error: 'Not found' }));
 
 const pub = path.join(__dirname, '..', 'public');
-app.use(express.static(pub, { extensions: ['html'], maxAge: config.isProd ? '1h' : 0, setHeaders: (res, p) => { if (p.endsWith('.html')) res.set('Cache-Control', 'no-cache'); } }));
-app.get('/admin*', (req, res) => res.sendFile(path.join(pub, 'admin', 'index.html')));
+const adminHtml = path.join(__dirname, 'views', 'admin.html');
+// Staff dashboard lives at ADMIN_PATH (default /admin). It is not linked anywhere on the public site.
+app.get([config.adminPath, config.adminPath + '/*'], (req, res) => {
+  res.set({ 'Cache-Control': 'no-store', 'X-Robots-Tag': 'noindex, nofollow' });
+  res.sendFile(adminHtml);
+});
+if (config.adminPath !== '/admin') app.use(/^\/admin(\/|$)/, (req, res) => res.redirect('/')); // hide the default address
+// (the staff page is kept out of search engines with a noindex header, not listed here, so its address stays private)
+app.get('/robots.txt', (req, res) => res.type('text/plain').send('User-agent: *\nDisallow: /api/\n'));
+app.use(express.static(pub, { index: 'index.html', maxAge: config.isProd ? '1h' : 0, setHeaders: (res, p) => { if (p.endsWith('.html')) res.set('Cache-Control', 'no-cache'); } }));
 app.get('*', (req, res) => res.sendFile(path.join(pub, 'index.html')));
 
 // Error handler – friendly JSON for the front-end, no stack traces to the public
@@ -65,6 +75,7 @@ app.use((err, req, res, next) => {
   try {
     await migrate();
     await seedContent();
+    await upgradeContent();
     await seedAdmin();
   } catch (e) { console.error('Startup failed – check DATABASE_URL:', e.message); process.exit(1); }
   const server = app.listen(config.port, () => console.log(`Mirror Aesthetics running on ${config.publicUrl} (port ${config.port})`));

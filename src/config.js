@@ -21,7 +21,9 @@ const config = {
     host: env('SMTP_HOST', ''), port: Number(env('SMTP_PORT', 587)), secure: env('SMTP_SECURE', 'false') === 'true',
     user: env('SMTP_USER', ''), pass: env('SMTP_PASS', ''), from: env('MAIL_FROM', ''),
   },
+  brevoKey: env('BREVO_API_KEY', ''),
   notifyEmail: env('NOTIFY_EMAIL', ''), // clinic inbox that receives "new booking" alerts
+  adminPath: ('/' + env('ADMIN_PATH', 'admin').replace(/^\/+|\/+$/g, '')).replace(/[^\w\/-]/g, ''),
   maxUploadMb: Number(env('MAX_UPLOAD_MB', 8)),
 };
 

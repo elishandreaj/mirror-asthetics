@@ -146,9 +146,9 @@ r.get('/bookings/:id/message/:key', ah(async (req, res) => {
 }));
 r.post('/bookings/:id/email/:key', ah(async (req, res) => {
   const b = await B.getById(int(req.params.id)); if (!b) throw new HttpError(404, 'Booking not found.');
-  if (!mailer.enabled()) throw new HttpError(400, 'Email is not set up yet (SMTP settings). Use "Copy message" instead.');
+  if (!mailer.enabled()) throw new HttpError(400, 'Email is not set up yet (add BREVO_API_KEY or SMTP settings). Use "Copy message" instead.');
   if (!b.client_email) throw new HttpError(400, 'This client has no email address.');
-  const ok = await mailer.sendTemplate(req.params.key, b); if (!ok) throw new HttpError(502, 'Email could not be sent. Check SMTP settings.');
+  const ok = await mailer.sendTemplate(req.params.key, b); if (!ok) throw new HttpError(502, 'Email could not be sent. Check the email settings.');
   A.audit(req.user, 'email', 'booking', b.id, { template: req.params.key }); res.json({ ok: true });
 }));
 
@@ -212,15 +212,17 @@ r.get('/media/:id', ah(async (req, res) => {
 /* ---------------------------------------------------------------- GALLERY (before & after) – staff allowed */
 const galleryView = g => ({ ...g, before: mediaUrl(g.before_id), after: mediaUrl(g.after_id) });
 r.get('/gallery', ah(async (req, res) => { const { rows } = await query('SELECT * FROM gallery ORDER BY sort, id DESC'); res.json({ items: rows.map(galleryView) }); }));
+async function treatmentName(id) { if (!id) return null; const { rows } = await query('SELECT name FROM treatments WHERE id=$1', [id]); return rows[0]?.name || null; }
 const galUpload = upload.fields([{ name: 'before', maxCount: 1 }, { name: 'after', maxCount: 1 }]);
 r.post('/gallery', galUpload, ah(async (req, res) => {
   const f = req.body;
-  if (!str(f.title)) throw new HttpError(400, 'Add a title.');
+  const tid = int(f.treatment_id) || null, tname = await treatmentName(tid);
+  if (!str(f.title) && !tname) throw new HttpError(400, 'Choose a treatment or add a title.');
   if (!req.files?.before || !req.files?.after) throw new HttpError(400, 'Upload both a BEFORE and an AFTER photo.');
   if (!bool(f.consent)) throw new HttpError(400, "Confirm you have the client's written consent to publish these photos.");
   const before = await saveImage(req.files.before[0].buffer), after = await saveImage(req.files.after[0].buffer);
-  const { rows } = await query(`INSERT INTO gallery(title, treatment_label, caption, before_id, after_id, consent_confirmed, published, sort) VALUES ($1,$2,$3,$4,$5,true,$6,$7) RETURNING *`,
-    [str(f.title, 120), str(f.treatment, 120), str(f.caption, 500), before, after, f.published === undefined ? true : bool(f.published), int(f.sort) || 0]);
+  const { rows } = await query(`INSERT INTO gallery(title, treatment_label, treatment_id, sessions, caption, before_id, after_id, consent_confirmed, published, sort) VALUES ($1,$2,$3,$4,$5,$6,$7,true,$8,$9) RETURNING *`,
+    [str(f.title, 120) || tname, str(f.treatment, 120) || tname || '', tid, str(f.sessions, 60), str(f.caption, 500), before, after, f.published === undefined ? true : bool(f.published), int(f.sort) || 0]);
   A.audit(req.user, 'create', 'gallery', rows[0].id, { title: rows[0].title }); res.status(201).json({ item: galleryView(rows[0]) });
 }));
 r.patch('/gallery/:id', galUpload, ah(async (req, res) => {
@@ -229,13 +231,15 @@ r.patch('/gallery/:id', galUpload, ah(async (req, res) => {
   if (f.title !== undefined) upd.title = str(f.title, 120) || g.title;
   if (f.treatment !== undefined) upd.treatment_label = str(f.treatment, 120);
   if (f.caption !== undefined) upd.caption = str(f.caption, 500);
+  upd.sessions = f.sessions !== undefined ? str(f.sessions, 60) : g.sessions;
+  upd.treatment_id = f.treatment_id !== undefined ? (int(f.treatment_id) || null) : g.treatment_id;
   if (f.published !== undefined) upd.published = bool(f.published);
   if (f.sort !== undefined) upd.sort = int(f.sort) || 0;
   const old = [];
   if (req.files?.before) { old.push(g.before_id); upd.before_id = await saveImage(req.files.before[0].buffer); }
   if (req.files?.after) { old.push(g.after_id); upd.after_id = await saveImage(req.files.after[0].buffer); }
-  const { rows } = await query(`UPDATE gallery SET title=$1, treatment_label=$2, caption=$3, published=$4, sort=$5, before_id=$6, after_id=$7 WHERE id=$8 RETURNING *`,
-    [upd.title, upd.treatment_label, upd.caption, upd.published, upd.sort, upd.before_id, upd.after_id, id]);
+  const { rows } = await query(`UPDATE gallery SET title=$1, treatment_label=$2, caption=$3, published=$4, sort=$5, before_id=$6, after_id=$7, sessions=$8, treatment_id=$9 WHERE id=$10 RETURNING *`,
+    [upd.title, upd.treatment_label, upd.caption, upd.published, upd.sort, upd.before_id, upd.after_id, upd.sessions, upd.treatment_id, id]);
   for (const m of old) await deleteMedia(m);
   A.audit(req.user, 'update', 'gallery', id); res.json({ item: galleryView(rows[0]) });
 }));
@@ -335,7 +339,7 @@ r.delete('/practitioners/:id', A.requireAdmin, ah(async (req, res) => {
 const LISTS = {
   promos: { cols: { chip: 60, title: 160, body: 600 }, required: 'title' },
   testimonials: { cols: { quote: 600, author: 120 }, required: 'quote' },
-  faqs: { cols: { question: 300, answer: 2000 }, required: 'question' },
+  faqs: { cols: { topic: 60, question: 300, answer: 2000 }, required: 'question' },
 };
 for (const [table, spec] of Object.entries(LISTS)) {
   r.get(`/${table}`, ah(async (req, res) => { const { rows } = await query(`SELECT * FROM ${table} ORDER BY sort, id`); res.json({ items: rows }); }));
@@ -370,12 +374,33 @@ r.put('/settings/:key', A.requireAdmin, ah(async (req, res) => {
     v.cancelHours = n(v.cancelHours, 0, 168, 'Cancellation hours'); v.maxAdvanceDays = n(v.maxAdvanceDays, 1, 365, 'Max advance days');
     v.closedDays = (Array.isArray(v.closedDays) ? v.closedDays : []).map(Number).filter(d => d >= 0 && d <= 6);
     v.onlineBookingEnabled = bool(v.onlineBookingEnabled);
+    v.autoConfirm = bool(v.autoConfirm);
     v.consult = { label: str(v.consult?.label, 60) || 'Consultation', duration: n(v.consult?.duration, 5, 240, 'Consult duration'), price: n(v.consult?.price, 0, 1e6, 'Consult price'), description: str(v.consult?.description, 300) };
   }
   if (key === 'templates' && !Array.isArray(v)) throw new HttpError(400, 'Templates must be a list.');
   if (key === 'site' && (typeof v !== 'object' || Array.isArray(v))) throw new HttpError(400, 'Invalid settings.');
+  if (key === 'site') { v.heroImageId = (await settings.get('site')).heroImageId || null; delete v.heroImage; }
   await settings.set(key, v); A.audit(req.user, 'update', 'settings', key);
   res.json({ ok: true, value: await settings.get(key) });
+}));
+
+r.post('/site-image', A.requireAdmin, upload.single('photo'), ah(async (req, res) => {
+  if (!req.file) throw new HttpError(400, 'Choose a photo.');
+  const site = await settings.get('site'); const old = site.heroImageId;
+  const id = await saveImage(req.file.buffer, { maxSize: 1800 });
+  await settings.set('site', { ...site, heroImageId: id }); await deleteMedia(old);
+  A.audit(req.user, 'update', 'settings', 'hero_image'); res.json({ url: mediaUrl(id) });
+}));
+r.delete('/site-image', A.requireAdmin, ah(async (req, res) => {
+  const site = await settings.get('site'); await settings.set('site', { ...site, heroImageId: null }); await deleteMedia(site.heroImageId);
+  res.json({ ok: true });
+}));
+r.post('/test-email', A.requireAdmin, ah(async (req, res) => {
+  if (!mailer.enabled()) throw new HttpError(400, 'Email is not set up yet. Add BREVO_API_KEY and MAIL_FROM in your hosting settings (see the setup guide).');
+  const to = str(req.body.to, 160) || req.user.email;
+  const ok = await mailer.send({ to, subject: 'Test email from your website', text: 'It works! Booking emails from your website will look like they come from this sender.' });
+  if (!ok) throw new HttpError(502, 'Sending failed. Check the server log – usually a wrong API key or the sender email is not verified in Brevo.');
+  res.json({ ok: true, to });
 }));
 
 /* ---------------------------------------------------------------- USERS (admin) */

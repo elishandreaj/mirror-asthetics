@@ -1,7 +1,9 @@
 # Staff Guide – Mirror Aesthetics Dashboard
 
-Open **yourwebsite/admin** on any phone, tablet or computer and sign in with your own email and password.
+Open the staff address your admin gave you (e.g. **yourwebsite/admin**) on any phone, tablet or computer and sign in with your own email and password. It isn't linked on the public website – bookmark it.
 Never share your login – ask the admin to create an account for each person.
+
+The menu is on the left. Click **Collapse** at the bottom to shrink it to icons; on a phone, tap ☰ to open it.
 
 ---
 
@@ -34,11 +36,12 @@ Shows how many appointments each day has, pending ones, and 🚫 blocked days. T
 Blocked times can't be booked online. (Existing bookings on that day are not cancelled – move them first.)
 
 ## Before & after photos (Results page)
-**Results photos** → title (e.g. "Underarm whitening – 5 sessions") → choose the BEFORE and AFTER photo → tick that the client gave **written consent** → **Upload**.
+**Results photos** → pick the treatment from the list on the left (use the search box) → **Add before & after** → tap the BEFORE and AFTER boxes to choose photos → optionally type the number of sessions (e.g. "After 4 sessions") → tick that the client gave **written consent** → **Upload**.
+The website groups results by treatment automatically and shows a slider to compare before and after.
 Use **Hide** to take a photo off the website without deleting it. Tips: same lighting, same angle, no faces unless the client agreed.
 
 ## Admin-only pages
-- **Treatments & prices** – change prices/durations directly in the table (saves automatically), add new treatments, untick *Active* to hide one, tick *Featured* to show it on the home page.
+- **Treatments & prices** – pick a category on the left (or search), change prices directly in the table (saves automatically), switch *Home page* on to feature a treatment, switch *On website* off to hide it. Session length (in **Edit**) is only used for scheduling – clients don't see it.
 - **Team** – names, titles, photos; "Takes bookings" controls who clients can choose.
 - **Promos · Reviews · FAQ** – the home-page promos, client quotes and FAQ answers.
 - **Clinic info & settings** – address, phone, hours, map, social links, all page text, privacy policy, **booking rules** (opening hours, closed days, buffer time, cancellation hours, pause online booking) and the **message templates**.

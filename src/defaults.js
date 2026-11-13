@@ -12,14 +12,18 @@ const site = {
   email: 'mgr.mirror@gmail.com',
   hoursShort: 'Mon–Sat · 10:00 AM – 7:00 PM',
   hoursLong: 'Mon–Sat: 10:00 AM – 7:00 PM\nSunday: Closed',
+  hoursNote: 'Hours may change on public holidays – we post updates on our Facebook page.',
+  heroImageId: null,
+  heroTitle: 'Skin care that starts with listening.',
+  heroText: 'Facials, laser hair removal, body contouring and spa care in Bacolod City – planned around your skin, your goals and your schedule.',
   topIntro: 'Gentle, effective care designed around you.',
   treatmentsIntro: 'Prices are starting rates. Final price is confirmed after consultation.',
   resultsNote: 'Individual results vary depending on skin type, lifestyle, and number of sessions.',
   teamIntro: 'Our licensed and certified team will take care of you.',
   badges: [
-    { icon: '🩺', title: 'Licensed doctors', text: 'Care guided by qualified professionals' },
-    { icon: '🌿', title: 'Safe products', text: 'Trusted, skin-friendly products' },
-    { icon: '✨', title: 'Hygienic clinic', text: 'Sanitised tools and clean rooms' },
+    { icon: 'shield', title: 'Licensed doctors', text: 'Every plan is guided by qualified professionals.' },
+    { icon: 'leaf', title: 'Safe products', text: 'Trusted, skin-friendly products – nothing harsh.' },
+    { icon: 'drop', title: 'Hygienic clinic', text: 'Sanitised tools and freshly prepared rooms.' },
   ],
   loyalty: {
     title: 'Refer a friend, earn rewards',
@@ -54,14 +58,15 @@ const booking = {
   cancelHours: 24,                  // customers can self-cancel/reschedule up to this many hours before
   maxAdvanceDays: 60,               // how far ahead customers can book
   onlineBookingEnabled: true,
+  autoConfirm: false,               // true = online bookings are confirmed instantly (no staff review)
   consult: { label: 'Consultation', duration: 30, price: 0, description: 'Skin assessment and treatment plan. Best for first-timers.' },
 };
 
 const templates = [
   { key: 'received', name: 'Booking received (auto-email to client)', subject: 'We received your booking – {code}',
-    body: 'Hi {name}!\n\nThank you for booking with Mirror Aesthetics. Your request is PENDING – we will confirm it shortly.\n\nService: {service}\nSpecialist: {specialist}\nDate: {date}\nTime: {time}\nReference code: {code}\n\nNeed to change plans? Visit {manage_link} with your code. Please give {cancel_hours} hours\' notice.\n\nSee you soon! ✨\nMirror Aesthetics · {clinic_phone}' },
+    body: 'Hi {name}!\n\nThank you for booking with Mirror Aesthetics. Your request is PENDING – we will confirm it shortly.\n\nService: {service}\nSpecialist: {specialist}\nDate: {date}\nTime: {time}\nReference code: {code}\n\nNeed to change plans? Visit {manage_link} with your code. Please give {cancel_hours} hours\' notice.\n\nSee you soon!\nMirror Aesthetics · {clinic_phone}' },
   { key: 'confirmed', name: 'Booking confirmed (auto-email when staff confirms)', subject: 'Your appointment is confirmed – {date} {time}',
-    body: 'Hi {name}! Your {service} at Mirror Aesthetics is CONFIRMED for {date} at {time}. Ref: {code}.\n\nAddress: {clinic_address}\nReschedule/cancel with {cancel_hours}h notice: {manage_link}\n\nSee you soon! ✨' },
+    body: 'Hi {name},\n\nYour appointment at Mirror Aesthetics is CONFIRMED.\n\nService: {service}\nSpecialist: {specialist}\nDate: {date}\nTime: {time}\nEstimated total: {total} (payable at the clinic)\nReference code: {code}\n\nAddress: {clinic_address}\nPlease arrive 10 minutes early. Need to reschedule or cancel? {manage_link} ({cancel_hours} hours\' notice please).\n\nSee you soon!\nMirror Aesthetics · {clinic_phone}' },
   { key: 'reminder', name: '24-hour reminder (auto-email day before)', subject: 'Reminder: your appointment tomorrow at {time}',
     body: 'Hi {name}, a gentle reminder of your appointment tomorrow, {date} at {time} at Mirror Aesthetics, {clinic_address}.\n\nNeed to reschedule? Use code {code} at {manage_link}.' },
   { key: 'rescheduled', name: 'Booking rescheduled (auto-email)', subject: 'Your booking was moved – {date} {time}',
@@ -71,7 +76,7 @@ const templates = [
   { key: 'aftercare', name: 'Post-treatment aftercare (copy & send)', subject: 'Aftercare tips from Mirror Aesthetics',
     body: 'Thank you for visiting, {name}! Aftercare: wear SPF 30+, avoid hot showers/saunas for 24h, skip retinol and exfoliants for 3 days, and keep skin moisturised. Questions? {clinic_phone}.' },
   { key: 'followup', name: 'Follow-up & review request (copy & send)', subject: 'How is your skin feeling?',
-    body: 'Hi {name}, how is your skin feeling? We\'d love your feedback — a quick review helps others find us. Book your next session to keep your glow going 💛 {site_link}' },
+    body: 'Hi {name}, how is your skin feeling? We\'d love your feedback — a quick review helps others find us. Book your next session anytime: {site_link}' },
 ];
 
 // [name, minutes, price PHP, description, featured]
@@ -150,13 +155,20 @@ const testimonials = [
   { quote: 'Booking online was so easy from my phone.', author: 'Client, Silay' },
 ];
 
+// [topic, question, answer]
 const faqs = [
-  ['Is there downtime?', 'Most facials, slimming and spa services have none. Mild redness after microdermabrasion or laser usually settles within hours to a day or two.'],
-  ['Does it hurt?', 'Most clients feel mild warmth or a light snapping sensation with laser. Cooling is used for comfort. Tell your practitioner if you need a break.'],
-  ['Are treatments safe?', 'Yes. We use trusted products, sanitised equipment and screen every client first. Share your full medical history and allergies when booking.'],
-  ['Can I get treated if pregnant or breastfeeding?', 'Laser, cavitation, radio frequency and some massage techniques are not advised during pregnancy. Please tell us when you book and we will suggest safe options. A doctor\'s clearance may be required.'],
-  ['What aftercare do I need?', 'Avoid direct sun, wear SPF 30+, skip hot showers/saunas for 24 hours, and avoid retinol or exfoliants for 3 days unless advised. You\'ll get a full aftercare message after your visit.'],
-  ['How do I reschedule or cancel?', 'Use the “Manage booking” page with your reference code. Please give at least 24 hours\' notice.'],
+  ['Booking & visits', 'Do I need a consultation before my first treatment?', 'For facials and spa services you can book the treatment directly. For laser hair removal, whitening and body contouring we recommend the free consultation first – we check your skin type, medical history and goals, then suggest the number of sessions and a schedule that fits your budget.'],
+  ['Booking & visits', 'How do I pay?', 'Payment is settled at the clinic after your session. Prices on the website are starting rates; your final price is confirmed by your therapist before we begin, so there are no surprises.'],
+  ['Booking & visits', 'Can I reschedule or cancel?', 'Yes. Open "My booking" on this website, enter your reference code and mobile number, and pick a new time or cancel. Please do this at least 24 hours before your appointment; for later changes, call or message us.'],
+  ['Booking & visits', 'What if I am running late?', 'Message or call us as soon as you can. We will do our best to keep your slot, but if you arrive more than 15 minutes late we may need to shorten the session or move you to the next available time so the next client is not delayed.'],
+  ['Treatments & safety', 'How many laser hair removal sessions will I need?', 'Most clients see clear reduction after 3–4 sessions and need about 6–8 sessions in total, spaced 4–6 weeks apart. Hair colour, skin tone and the treatment area all affect this – your therapist will give you an honest estimate during consultation.'],
+  ['Treatments & safety', 'Does laser hair removal hurt?', 'Most clients describe it as a warm, quick snapping feeling. We use a cooling handpiece and adjust the settings to your comfort. Sensitive areas like the upper lip or Brazilian area feel stronger but are over in minutes.'],
+  ['Treatments & safety', 'Is there downtime after a facial or microdermabrasion?', 'Usually none. Your skin may look slightly pink for a few hours after microdermabrasion or extraction. You can go back to work or school the same day – just skip makeup for the rest of the day if you can.'],
+  ['Treatments & safety', 'Can I have treatments while pregnant or breastfeeding?', 'Laser, cavitation, radio frequency and some massage techniques are not done during pregnancy. Gentle facials and some spa services may be fine. Please tell us when you book and we will suggest safe options; a doctor\'s clearance may be needed.'],
+  ['Treatments & safety', 'I have sensitive or acne-prone skin. Is that okay?', 'Yes – that is one of the most common reasons clients visit us. Tell us about any medication (especially isotretinoin or retinoids), allergies or recent peels when you book so we can adjust the products and settings, or advise waiting if needed.'],
+  ['Aftercare', 'What should I do after my treatment?', 'Use sunscreen (SPF 30 or higher) every day, avoid direct sun, saunas and hot showers for 24 hours, and pause retinol and exfoliants for about 3 days. For laser, do not wax or pluck between sessions – shaving is fine. We send aftercare tips after your visit.'],
+  ['Aftercare', 'When will I see results?', 'Facials give a visible glow right away. Whitening and body contouring build up gradually over a series of sessions, and laser results show over several weeks as treated hair sheds. Results vary from person to person.'],
 ];
+
 
 module.exports = { site, booking, templates, catalog, practitioners, promos, testimonials, faqs };

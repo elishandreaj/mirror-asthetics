@@ -4,8 +4,23 @@ const config = require('../config');
 const settings = require('./settings');
 const T = require('./time');
 
+// Two ways to send: Brevo's HTTPS API (works on free hosts that block SMTP ports, e.g. Render free)
+// or classic SMTP (Gmail, etc.). Brevo is used when BREVO_API_KEY is set.
 let transport = null;
-if (config.smtp.host && config.smtp.user) {
+if (config.brevoKey) {
+  transport = {
+    async sendMail({ from, to, subject, text, replyTo }) {
+      const m = /^\s*"?([^"<]*)"?\s*<([^>]+)>\s*$/.exec(from || '');
+      const sender = m ? { name: m[1].trim() || undefined, email: m[2].trim() } : { email: String(from || '').trim() };
+      const res = await fetch('https://api.brevo.com/v3/smtp/email', {
+        method: 'POST',
+        headers: { 'api-key': config.brevoKey, 'content-type': 'application/json', accept: 'application/json' },
+        body: JSON.stringify({ sender, to: [{ email: to }], subject, textContent: text, ...(replyTo ? { replyTo: { email: replyTo } } : {}) }),
+      });
+      if (!res.ok) throw new Error(`Brevo ${res.status}: ${(await res.text()).slice(0, 300)}`);
+    },
+  };
+} else if (config.smtp.host && config.smtp.user) {
   transport = nodemailer.createTransport({ host: config.smtp.host, port: config.smtp.port, secure: config.smtp.secure, auth: { user: config.smtp.user, pass: config.smtp.pass } });
 }
 const enabled = () => !!transport;
@@ -17,17 +32,17 @@ async function fill(text, b) {
     name: b.client_name, code: b.code, service: b.service, specialist: b.practitioner_name || 'Any available',
     date: T.fmtDate(b.date), time: T.fmtTime(b.start_min), status: b.status, type: b.type === 'consult' ? 'consultation' : 'treatment',
     clinic_phone: site.phone, clinic_address: site.address, cancel_hours: booking.cancelHours,
-    manage_link: `${config.publicUrl}/#manage`, site_link: config.publicUrl, total: b.price ? `₱${Number(b.price).toLocaleString('en-PH')}` : 'Free',
+    manage_link: `${config.publicUrl}/#manage?code=${b.code}`, site_link: config.publicUrl, total: b.price ? `₱${Number(b.price).toLocaleString('en-PH')}` : 'Free',
   };
   return String(text).replace(/\{(\w+)\}/g, (m, k) => (k in map ? map[k] : m));
 }
 
 async function send({ to, subject, text, replyTo }) {
   if (!to) return false;
-  if (!transport) { console.log(`[mail skipped – SMTP not set] to=${to} subject="${subject}"`); return false; }
+  if (!transport) { console.log(`[mail skipped – email not set up] to=${to} subject="${subject}"`); return false; }
   try {
     const { site } = await settings.getAll();
-    await transport.sendMail({ from: config.smtp.from || config.smtp.user, to, subject, text, replyTo: replyTo || site.email });
+    await transport.sendMail({ from: config.smtp.from || config.smtp.user || `"${site.name}" <${site.email}>`, to, subject, text, replyTo: replyTo || site.email });
     return true;
   } catch (e) { console.error('Email failed:', e.message); return false; }
 }

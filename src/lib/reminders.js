@@ -17,7 +17,8 @@ async function runOnce() {
   return n;
 }
 function start() {
-  const tick = () => { if (new Date().getHours() >= 9) runOnce().catch(e => console.error('Reminder job failed', e.message)); }; // only from 9 AM
-  setTimeout(tick, 15 * 1000); setInterval(tick, 30 * 60 * 1000);
+  // Hourly between 9 AM and 8 PM clinic time. Kept infrequent so a free database can sleep between checks.
+  const tick = () => { const h = new Date().getHours(); if (h >= 9 && h <= 20) runOnce().catch(e => console.error('Reminder job failed', e.message)); };
+  setTimeout(tick, 60 * 1000); setInterval(tick, 60 * 60 * 1000);
 }
 module.exports = { start, runOnce };

@@ -1,14 +1,15 @@
 # Render Blueprint – deploys the website as one web service.
-# The database is external (Neon free tier recommended) – paste its URL as DATABASE_URL.
+# The database is external (Neon free plan) – paste its URL as DATABASE_URL.
+# Free setup guide: docs/DEPLOY-FREE.md
 services:
   - type: web
     name: mirror-aesthetics
     runtime: node
-    plan: starter            # "free" works for testing but sleeps when idle (slow first load, no reminder emails)
+    plan: free               # change to "starter" later for always-on, no-sleep hosting
     region: singapore
     buildCommand: npm ci --omit=dev
     startCommand: node src/server.js
-    healthCheckPath: /healthz
+    healthCheckPath: /ping
     envVars:
       - key: NODE_ENV
         value: production
@@ -22,19 +23,13 @@ services:
         sync: false
       - key: PUBLIC_URL
         sync: false
+      - key: ADMIN_PATH         # private staff dashboard address, e.g. mirror-staff-7Q2
+        sync: false
       - key: ADMIN_EMAIL
         sync: false
       - key: ADMIN_PASSWORD
         sync: false
-      - key: SMTP_HOST
-        sync: false
-      - key: SMTP_PORT
-        sync: false
-      - key: SMTP_SECURE
-        sync: false
-      - key: SMTP_USER
-        sync: false
-      - key: SMTP_PASS
+      - key: BREVO_API_KEY      # free plan blocks SMTP ports, so email goes through Brevo's API
         sync: false
       - key: MAIL_FROM
         sync: false

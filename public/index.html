@@ -2,142 +2,94 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Mirror Aesthetics – Reflect your Beauty</title>
 <meta name="description" content="Mirror Aesthetics, Bacolod City. Facials, slimming, laser hair removal, whitening and spa. Book online.">
-<meta name="theme-color" content="#FBF7F1">
+<meta name="theme-color" content="#F8F4EE">
 <meta property="og:title" content="Mirror Aesthetics – Reflect your Beauty">
-<meta property="og:description" content="Facials, slimming, laser hair removal, whitening and spa in Bacolod City. Book online.">
+<meta property="og:description" content="Facials, laser hair removal, body contouring and spa in Bacolod City. Book online.">
 <meta property="og:type" content="website">
 <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="/assets/site.css">
 </head>
 <body>
-<div id="banner" class="banner hide"></div>
+<a class="sr" href="#main">Skip to content</a>
+<div id="banner" class="banner hide" role="status"></div>
 
-<header><div class="wrap bar">
-  <a class="logo" href="#home" id="logo">Mirror <span>Aesthetics</span></a>
-  <nav id="nav" aria-label="Main">
-    <a href="#home" data-i18n="nav_home">Home</a>
+<header class="site-head" id="head"><div class="wrap head-row">
+  <a class="wordmark" href="#home" aria-label="Home"><b data-bind="brandA">Mirror</b><i data-bind="brandB">Aesthetics</i></a>
+  <nav class="main-nav" aria-label="Main">
     <a href="#treatments" data-i18n="nav_treat">Treatments</a>
     <a href="#results" data-i18n="nav_results">Results</a>
-    <a href="#team" data-i18n="nav_team">Team</a>
+    <a href="#team" data-i18n="nav_team">Our team</a>
     <a href="#faq" data-i18n="nav_faq">FAQ</a>
-    <a href="#contact" data-i18n="nav_contact">Contact</a>
-    <a href="#manage" data-i18n="nav_manage">Manage booking</a>
-    <a class="btn sm" href="#book" data-i18n="nav_book">Book now</a>
+    <a href="#visit" data-i18n="nav_visit">Visit us</a>
   </nav>
-  <div style="display:flex;gap:6px;align-items:center">
-    <button class="lang" id="langBtn" aria-label="Switch language">EN | FIL</button>
-    <button class="menu-btn" id="menuBtn" aria-label="Menu" aria-expanded="false">☰</button>
+  <div class="head-actions">
+    <div class="lang" role="group" aria-label="Language"><button data-lang="en">EN</button><span>/</span><button data-lang="fil">FIL</button></div>
+    <a class="mybook" href="#manage" data-i18n="nav_manage">My booking</a>
+    <a class="btn" href="#book" data-i18n="nav_book">Book now</a>
+    <button class="menu-btn" id="menuBtn" aria-label="Open menu" aria-expanded="false"></button>
   </div>
 </div></header>
 
-<main id="main">
-<div class="loading" id="loading"><div><div class="spin"></div><p>Loading…</p></div></div>
-
-<!-- ================= HOME ================= -->
-<div class="page" id="p-home">
-  <section class="hero"><div>
-    <p class="eyebrow" data-bind="city">Bacolod City</p>
-    <h1 data-bind="name">Mirror Aesthetics</h1>
-    <p class="tag" id="tagline">Reflect your Beauty</p>
-    <a class="btn gold" href="#book" data-i18n="cta">Book a Consultation</a>
-    <p class="meta" data-bind="hoursShort"></p>
-  </div></section>
-
-  <section class="block"><div class="wrap">
-    <h2 data-i18n="h_top">Our most-loved treatments</h2>
-    <p class="lead" data-bind="topIntro"></p>
-    <div class="grid g3" id="topTreat"></div>
-    <p style="margin-top:20px"><a class="btn ghost" href="#treatments" data-i18n="see_all">See all treatments</a></p>
-  </div></section>
-
-  <section class="block" style="background:#fff"><div class="wrap">
-    <div class="badges" id="badges"></div>
-  </div></section>
-
-  <section class="block" id="promoBlock"><div class="wrap">
-    <h2 data-i18n="h_pack">Packages & promos</h2>
-    <div class="grid g3" id="promos"></div>
-  </div></section>
-
-  <section class="block" style="background:var(--blush)"><div class="wrap grid g2">
-    <div><h2 data-bind="loyalty.title"></h2><p class="lead" data-bind="loyalty.text"></p></div>
-    <div class="card"><h3 data-bind="loyalty.cardTitle"></h3><p style="color:var(--muted)" data-bind="loyalty.cardText"></p></div>
-  </div></section>
+<div class="sheet" id="sheet" aria-hidden="true">
+  <div class="sheet-top"><a class="wordmark" href="#home"><b data-bind="brandA">Mirror</b><i data-bind="brandB">Aesthetics</i></a><button class="menu-btn" id="sheetClose" aria-label="Close menu"></button></div>
+  <nav aria-label="Mobile">
+    <a href="#treatments"><span data-i18n="nav_treat">Treatments</span><i data-ic="arrow"></i></a>
+    <a href="#results"><span data-i18n="nav_results">Results</span><i data-ic="arrow"></i></a>
+    <a href="#team"><span data-i18n="nav_team">Our team</span><i data-ic="arrow"></i></a>
+    <a href="#faq"><span data-i18n="nav_faq">FAQ</span><i data-ic="arrow"></i></a>
+    <a href="#visit"><span data-i18n="nav_visit">Visit us</span><i data-ic="arrow"></i></a>
+  </nav>
+  <div class="sheet-foot"><a class="btn" href="#book" data-i18n="nav_book">Book now</a><a class="btn line" href="#manage" data-i18n="nav_manage">My booking</a></div>
 </div>
 
-<!-- ================= TREATMENTS ================= -->
-<div class="page" id="p-treatments"><section class="block"><div class="wrap">
-  <h2 data-i18n="nav_treat">Treatments</h2>
-  <p class="lead" data-bind="treatmentsIntro"></p>
-  <div id="treatList"></div>
-</div></section></div>
-
-<!-- ================= BEFORE & AFTER ================= -->
-<div class="page" id="p-results"><section class="block"><div class="wrap">
-  <h2>Before &amp; After</h2>
-  <p class="note" style="margin-bottom:20px" data-bind="resultsNote"></p>
-  <div class="grid g3" id="gallery"></div>
-</div></section></div>
-
-<!-- ================= TEAM ================= -->
-<div class="page" id="p-team"><section class="block"><div class="wrap">
-  <h2>Meet the Team</h2><p class="lead" data-bind="teamIntro"></p>
-  <div class="grid g3" id="teamList"></div>
-</div></section></div>
-
-<!-- ================= BOOKING ================= -->
-<div class="page" id="p-book"><section class="block"><div class="wrap" style="max-width:720px">
-  <h2 data-i18n="nav_book">Book an appointment</h2>
-  <ol class="steps" id="stepper" style="padding:0"></ol>
-  <div class="card" id="bookBox" aria-live="polite"></div>
-</div></section></div>
-
-<!-- ================= MANAGE (reschedule / cancel) ================= -->
-<div class="page" id="p-manage"><section class="block"><div class="wrap" style="max-width:720px">
-  <h2>Reschedule or cancel</h2>
-  <p class="note">Cancellation policy: please give at least <b id="cxHrs">24</b> hours' notice. Later changes may need a call to the clinic and a fee may apply.</p>
-  <div class="card" style="margin-top:16px" id="manageBox"></div>
-</div></section></div>
-
-<!-- ================= FAQ + TESTIMONIALS ================= -->
-<div class="page" id="p-faq"><section class="block"><div class="wrap" style="max-width:800px">
-  <div id="testiBlock"><h2>What clients say</h2>
-  <div class="grid g3" style="margin-bottom:40px" id="testimonials"></div></div>
-  <h2>Frequently asked questions</h2>
-  <div id="faqs"></div>
-</div></section></div>
-
-<!-- ================= CONTACT ================= -->
-<div class="page" id="p-contact"><section class="block"><div class="wrap">
-  <h2>Contact &amp; location</h2>
-  <div class="grid g2">
-    <div class="card"><p><b data-bind="name"></b><br><span data-bind="address"></span></p><br>
-      <p>📞 <a id="telLink" href="#"></a><br>✉️ <a id="mailLink" href="#"></a></p><br>
-      <p class="pre-line" data-bind="hoursLong"></p></div>
-    <div id="mapBox"><div class="ph" style="aspect-ratio:4/3">🗺️ Map coming soon</div></div>
-  </div>
-</div></section></div>
-
-<!-- ================= PRIVACY ================= -->
-<div class="page" id="p-privacy"><section class="block"><div class="wrap" style="max-width:760px">
-  <h2>Privacy Policy</h2>
-  <p class="pre-line" data-bind="privacyText"></p>
-</div></section></div>
+<main id="main">
+<div class="loading" id="loading"><div class="spin"></div></div>
+<div class="page" id="p-home"></div>
+<div class="page" id="p-treatments"></div>
+<div class="page" id="p-results"></div>
+<div class="page" id="p-team"></div>
+<div class="page" id="p-faq"></div>
+<div class="page" id="p-visit"></div>
+<div class="page" id="p-book"></div>
+<div class="page" id="p-manage"></div>
+<div class="page" id="p-privacy"></div>
 </main>
 
-<footer><div class="wrap grid g3">
-  <div><h4 data-bind="name"></h4><p data-bind="tagline"></p><p data-bind="address"></p></div>
-  <div><h4>Hours</h4><p class="pre-line" data-bind="hoursLong"></p></div>
-  <div><h4>Follow us</h4><p id="social"></p>
-  <p><a href="#privacy">Privacy policy</a> · <a href="/admin/">Staff login</a></p></div>
-</div><div class="wrap"><p style="margin-top:24px;font-size:.85rem">© <span id="yr"></span> <span data-bind="name"></span>. All rights reserved.</p></div></footer>
+<footer class="site-foot"><div class="wrap">
+  <div class="foot-grid">
+    <div>
+      <a class="wordmark" href="#home"><b data-bind="brandA">Mirror</b><i data-bind="brandB">Aesthetics</i></a>
+      <p style="margin-top:18px;max-width:300px" id="footBlurb"></p>
+      <div class="socials" id="socials"></div>
+    </div>
+    <div>
+      <h4>Find us</h4>
+      <div class="foot-map" id="footMap"></div>
+      <a class="link foot-dir" id="footDir" target="_blank" rel="noopener" href="#"><span>Get directions</span><i data-ic="arrow"></i></a>
+    </div>
+    <div>
+      <h4>Explore</h4>
+      <ul class="foot-links">
+        <li><a href="#treatments" data-i18n="nav_treat">Treatments</a></li>
+        <li><a href="#results" data-i18n="nav_results">Results</a></li>
+        <li><a href="#team" data-i18n="nav_team">Our team</a></li>
+        <li><a href="#faq" data-i18n="nav_faq">FAQ</a></li>
+        <li><a href="#visit" data-i18n="nav_visit">Visit us</a></li>
+        <li><a href="#book" data-i18n="nav_book">Book now</a></li>
+        <li><a href="#manage" data-i18n="nav_manage">My booking</a></li>
+        <li><a href="#privacy">Privacy policy</a></li>
+      </ul>
+    </div>
+  </div>
+  <div class="foot-bottom"><span>© <span id="yr"></span> <span data-bind="name"></span>. All rights reserved.</span><span data-bind="city"></span></div>
+</div></footer>
 
-<div class="chat" id="chat">
-  <div class="items" id="chatItems"></div>
-  <button style="background:var(--gold-dark)" id="chatBtn" aria-label="Chat with us">💬 Chat</button>
+<div class="fab" id="fab">
+  <div class="fab-menu" id="fabMenu" role="menu"></div>
+  <button class="fab-btn" id="fabBtn" aria-label="Contact us" aria-expanded="false"></button>
 </div>
 
 <script src="/assets/site.js" defer></script>

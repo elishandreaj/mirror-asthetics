@@ -19,7 +19,7 @@ async function seedContent() {
     for (const p of D.practitioners) await db.query('INSERT INTO practitioners(name, role, credentials, specialties, sort) VALUES ($1,$2,$3,$4,$5)', [p.name, p.role, p.credentials, p.specialties, s += 10]);
     s = 0; for (const p of D.promos) await db.query('INSERT INTO promos(chip,title,body,sort) VALUES ($1,$2,$3,$4)', [p.chip, p.title, p.body, s += 10]);
     s = 0; for (const t of D.testimonials) await db.query('INSERT INTO testimonials(quote,author,sort) VALUES ($1,$2,$3)', [t.quote, t.author, s += 10]);
-    s = 0; for (const [q, a] of D.faqs) await db.query('INSERT INTO faqs(question,answer,sort) VALUES ($1,$2,$3)', [q, a, s += 10]);
+    s = 0; for (const [t, q, a] of D.faqs) await db.query('INSERT INTO faqs(topic,question,answer,sort) VALUES ($1,$2,$3,$4)', [t, q, a, s += 10]);
   });
   console.log('Seeded starting content (treatments, team, promos, FAQs).');
   return true;
@@ -36,4 +36,22 @@ async function seedAdmin() {
   console.log(`Created first admin account: ${config.admin.email}`);
   return true;
 }
-module.exports = { seedContent, seedAdmin };
+// One-time content upgrades for sites created with an earlier version.
+// Only replaces content that is still exactly the old sample text (never overwrites the clinic's own edits).
+const OLD_FAQ_QUESTIONS = ['Is there downtime?', 'Does it hurt?', 'Are treatments safe?', 'Can I get treated if pregnant or breastfeeding?', 'What aftercare do I need?', 'How do I reschedule or cancel?'];
+async function upgradeContent() {
+  const { rows: v } = await query("SELECT value FROM settings WHERE key = 'content_version'");
+  const version = v[0] ? Number(v[0].value) : 1;
+  if (version >= 2) return;
+  const { rows } = await query('SELECT question FROM faqs ORDER BY id');
+  const qs = rows.map(r => r.question);
+  if (qs.length === OLD_FAQ_QUESTIONS.length && qs.every(q => OLD_FAQ_QUESTIONS.includes(q))) {
+    await tx(async db => {
+      await db.query('DELETE FROM faqs');
+      let s = 0; for (const [t, q, a] of D.faqs) await db.query('INSERT INTO faqs(topic,question,answer,sort) VALUES ($1,$2,$3,$4)', [t, q, a, s += 10]);
+    });
+    console.log('Upgraded FAQ to the new grouped version.');
+  }
+  await query(`INSERT INTO settings(key, value) VALUES ('content_version', '2') ON CONFLICT (key) DO UPDATE SET value = '2'`);
+}
+module.exports = { seedContent, seedAdmin, upgradeContent };
