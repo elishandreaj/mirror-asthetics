@@ -10,6 +10,10 @@ body.admin .sub{color:var(--muted);margin-bottom:22px}
 .shell.collapsed{grid-template-columns:76px minmax(0,1fr)}
 .sb{position:sticky;top:0;height:100vh;background:var(--ink);color:#d8cec2;display:flex;flex-direction:column;overflow:hidden;z-index:40}
 .sb-top{display:flex;align-items:center;gap:12px;padding:20px 18px 18px;border-bottom:1px solid #3a322d;min-height:78px}
+.collapse-btn{display:grid;place-items:center;flex:none;width:34px;height:34px;margin-left:auto;padding:0;border:0;border-radius:8px;background:none;color:#bfb3a6;cursor:pointer}
+.collapse-btn:hover{background:#352e29;color:#fff}
+.collapse-ic{display:inline-flex;transition:transform .25s}
+.collapse-ic .icon{width:19px;height:19px}
 .mono{width:40px;height:40px;flex:none;border-radius:50% 50% 6px 6px;border:1px solid #6e5f52;display:grid;place-items:center;font:italic 1.45rem var(--serif);color:#e3c58f}
 .sb-name{display:flex;flex-direction:column;line-height:1;white-space:nowrap}
 .sb-name b{font:600 .8rem var(--sans);letter-spacing:.3em;text-transform:uppercase;color:var(--paper)}
@@ -22,16 +26,20 @@ body.admin .sub{color:var(--muted);margin-bottom:22px}
 .sb nav button .icon{width:19px;height:19px}
 .sb nav button .badge{margin-left:auto;background:#c98f7e;color:#fff;font-size:.68rem;font-weight:700;border-radius:999px;padding:1px 7px}
 .sb-foot{border-top:1px solid #3a322d;padding:12px}
-.me{display:flex;align-items:center;gap:12px;padding:6px 8px 10px;white-space:nowrap}
+.me{display:flex;align-items:center;gap:10px;padding:6px 4px;white-space:nowrap}
 .me .av{width:34px;height:34px;flex:none;border-radius:50%;background:#4a403a;display:grid;place-items:center;font-weight:700;font-size:.8rem;color:var(--paper)}
 .me small{display:block;color:#8a7d71;font-size:.72rem;text-transform:capitalize}
-.sb-foot button{display:flex;align-items:center;gap:14px;width:100%;min-height:40px;padding:0 12px;border:0;border-radius:8px;background:none;color:#bfb3a6;cursor:pointer;font-size:.86rem;white-space:nowrap}
-.sb-foot button:hover{background:#352e29;color:#fff}
+.me>div{min-width:0;overflow:hidden;text-overflow:ellipsis}
+.me>div b{display:block;overflow:hidden;text-overflow:ellipsis}
+.logout-btn{display:grid;place-items:center;flex:none;width:34px;height:34px;margin-left:auto;padding:0;border:0;border-radius:8px;background:none;color:#bfb3a6;cursor:pointer}
+.logout-btn:hover{background:#352e29;color:#fff}
+.logout-btn .icon{width:19px;height:19px}
 .shell.collapsed .sb-name,.shell.collapsed .sb .lbl,.shell.collapsed .sb .grp,.shell.collapsed .me div,.shell.collapsed .sb nav .badge{display:none}
 .shell.collapsed .sb .grp{display:block;height:10px;padding:0;font-size:0}
-.shell.collapsed .sb-top{justify-content:center;padding:20px 0 18px}
-.shell.collapsed .sb nav button,.shell.collapsed .sb-foot button{justify-content:center;padding:0}
-.shell.collapsed .me{justify-content:center}
+.shell.collapsed .sb-top{justify-content:center;gap:2px;padding:20px 4px 18px}
+.shell.collapsed .collapse-btn{margin-left:0}
+.shell.collapsed .sb nav button{justify-content:center;padding:0}
+.shell.collapsed .me{flex-direction:column;gap:8px;justify-content:center;padding:6px 0}
 .shell.collapsed .sb nav button.has-badge::after{content:"";position:absolute;top:9px;right:14px;width:8px;height:8px;border-radius:50%;background:#c98f7e}
 .shell.collapsed .collapse-ic{transform:rotate(180deg)}
 .main{min-width:0;display:flex;flex-direction:column}
@@ -47,6 +55,9 @@ body.admin .sub{color:var(--muted);margin-bottom:22px}
   .sb{position:fixed;left:0;top:0;bottom:0;width:260px;transform:translateX(-100%);transition:transform .25s}
   .shell.mobile-open .sb{transform:none}
   .shell.collapsed .sb-name,.shell.collapsed .sb .lbl,.shell.collapsed .me div{display:block}
+  .shell.collapsed .sb-top{justify-content:flex-start;gap:12px;padding:20px 18px 18px}
+  .shell.collapsed .collapse-btn{margin-left:auto}
+  .shell.collapsed .me{flex-direction:row;gap:10px;justify-content:flex-start;padding:6px 4px}
   .scrim{display:block;position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:35;opacity:0;pointer-events:none;transition:opacity .25s}
   .shell.mobile-open .scrim{opacity:1;pointer-events:auto}
   .burger{display:grid}.collapse-btn{display:none!important}

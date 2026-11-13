@@ -106,18 +106,23 @@ function shell() {
   const collapsed = store.get('ma_sb') === '1';
   $('#app').innerHTML = `<div class="shell ${collapsed ? 'collapsed' : ''}" id="shell">
     <aside class="sb" aria-label="Dashboard menu">
-      <div class="sb-top"><span class="mono">M</span><span class="sb-name"><b>Mirror</b><i>Aesthetics</i></span></div>
+      <div class="sb-top"><span class="mono">M</span><span class="sb-name"><b>Mirror</b><i>Aesthetics</i></span>
+        <button class="collapse-btn" id="collapse" aria-label="${collapsed ? 'Expand' : 'Collapse'} menu" title="${collapsed ? 'Expand' : 'Collapse'} menu"><span class="collapse-ic">${ic('collapse')}</span></button></div>
       <nav>${NAV.filter(n => !n[3] || isAdmin).map(n => n[0] === 'grp' ? `<div class="grp">${n[1]}</div>`
         : `<button data-v="${n[0]}" title="${esc(n[1])}">${ic(n[2])}<span class="lbl">${n[1]}</span>${n[0] === 'bookings' ? '<span class="badge hide" id="pendBadge"></span>' : ''}</button>`).join('')}</nav>
-      <div class="sb-foot"><div class="me"><span class="av">${esc(ME.name.split(' ').map(w => w[0]).slice(0, 2).join(''))}</span><div><b>${esc(ME.name)}</b><small>${esc(ME.role)}</small></div></div>
-        <button id="logout" title="Log out">${ic('logout')}<span class="lbl">Log out</span></button>
-        <button class="collapse-btn" id="collapse" title="Collapse menu"><span class="collapse-ic" style="display:inline-flex;transition:transform .25s">${ic('collapse')}</span><span class="lbl">Collapse</span></button></div>
+      <div class="sb-foot"><div class="me"><span class="av">${esc(ME.name.split(' ').map(w => w[0]).slice(0, 2).join(''))}</span><div><b>${esc(ME.name)}</b><small>${esc(ME.role)}</small></div>
+        <button class="logout-btn" id="logout" aria-label="Log out" title="Log out">${ic('logout')}</button></div></div>
     </aside>
     <div class="scrim" id="scrim"></div>
     <div class="main"><header class="topbar"><button class="burger" id="burger" aria-label="Open menu">${ic('menu')}</button><span class="crumb" id="crumb"></span>
       <a href="/" target="_blank" rel="noopener">View website ${ic('ext')}</a></header><section id="view"></section></div></div>`;
   $$('.sb nav [data-v]').forEach(b => b.onclick = () => { $('#shell').classList.remove('mobile-open'); go(b.dataset.v); });
-  $('#collapse').onclick = () => { const c = $('#shell').classList.toggle('collapsed'); store.set('ma_sb', c ? '1' : '0'); };
+  $('#collapse').onclick = () => {
+    const c = $('#shell').classList.toggle('collapsed');
+    store.set('ma_sb', c ? '1' : '0');
+    $('#collapse').setAttribute('aria-label', `${c ? 'Expand' : 'Collapse'} menu`);
+    $('#collapse').title = `${c ? 'Expand' : 'Collapse'} menu`;
+  };
   $('#burger').onclick = () => $('#shell').classList.add('mobile-open');
   $('#scrim').onclick = () => $('#shell').classList.remove('mobile-open');
   $('#logout').onclick = async () => { await quiet(api('/logout', { method: 'POST' })); ME = null; CATALOG = PRACS = SETTINGS = null; renderLogin(); };
