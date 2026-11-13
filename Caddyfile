@@ -1,0 +1,5 @@
+# Replace with your real domain(s). Caddy gets free HTTPS certificates automatically.
+mirroraesthetics.ph, www.mirroraesthetics.ph {
+	encode gzip
+	reverse_proxy app:3000
+}
