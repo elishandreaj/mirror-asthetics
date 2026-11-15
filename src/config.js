@@ -23,7 +23,7 @@ const config = {
   },
   brevoKey: env('BREVO_API_KEY', ''),
   notifyEmail: env('NOTIFY_EMAIL', ''), // clinic inbox that receives "new booking" alerts
-  adminPath: ('/' + env('ADMIN_PATH', 'admin').replace(/^\/+|\/+$/g, '')).replace(/[^\w\/-]/g, ''),
+  adminPath: '/ma-team-7xk9-login',
   maxUploadMb: Number(env('MAX_UPLOAD_MB', 8)),
 };
 

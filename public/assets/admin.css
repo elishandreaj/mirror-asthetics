@@ -39,7 +39,7 @@ body.admin .sub{color:var(--muted);margin-bottom:22px}
 .shell.collapsed .sb-top{justify-content:center;gap:2px;padding:20px 4px 18px}
 .shell.collapsed .collapse-btn{margin-left:0}
 .shell.collapsed .sb nav button{justify-content:center;padding:0}
-.shell.collapsed .me{flex-direction:column;gap:8px;justify-content:center;padding:6px 0}
+.shell.collapsed .me{flex-direction:row;gap:2px;justify-content:center;padding:6px 0}
 .shell.collapsed .sb nav button.has-badge::after{content:"";position:absolute;top:9px;right:14px;width:8px;height:8px;border-radius:50%;background:#c98f7e}
 .shell.collapsed .collapse-ic{transform:rotate(180deg)}
 .main{min-width:0;display:flex;flex-direction:column}
