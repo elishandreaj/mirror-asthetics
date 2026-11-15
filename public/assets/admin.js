@@ -157,39 +157,52 @@ function wireOpen(root, after) { $$('[data-open]', root).forEach(r => r.onclick 
 
 async function openBooking(id, after) {
   const { booking: b } = await run(() => api('/bookings/' + id));
-  await Promise.all([loadSettings(), loadPracs()]);
+  const completed = b.status === 'completed';
+  await Promise.all([loadSettings(), completed ? Promise.resolve() : loadPracs()]);
   const d = drawer(b.client_name, '');
   const refresh = () => { d.close(); after && after(); quiet(api('/dashboard').then(x => setBadge(x.counts.pending))); openBooking(id, after); };
   const canMail = EMAIL_ON && b.client_email;
+  const statusControls = completed
+    ? '<p class="note">This booking is completed and locked. Its details, status, and schedule can no longer be changed.</p>'
+    : `<h4>Update status</h4><div class="toolbar">${STATUSES.filter(s => s !== b.status).map(s => `<button class="btn sm ${['cancelled', 'noshow'].includes(s) ? 'line' : ''}" data-st="${s}">${s === 'confirmed' ? 'Confirm' : 'Mark ' + stLabel(s)}</button>`).join('')}</div>
+      <label class="chk"><input type="checkbox" id="notify" ${canMail ? 'checked' : 'disabled'}><span>Email the client about this change ${EMAIL_ON ? (b.client_email ? '' : '(no email on file)') : '(email not set up yet)'}</span></label>`;
+  const clientEdit = completed ? '' : '<div style="margin-top:12px"><button class="btn sm line" id="editClient">Edit details</button></div>';
+  const staffNotes = completed
+    ? `<p class="note">${esc(b.staff_notes || 'No staff notes.')}</p>`
+    : `<textarea id="snotes" placeholder="e.g. prefers Jasmine, paid ₱500 deposit">${esc(b.staff_notes)}</textarea><div style="margin-top:8px;text-align:right"><button class="btn sm" id="saveNotes">Save notes</button></div>`;
+  const reschedule = completed
+    ? ''
+    : '<h4>Reschedule</h4><div class="box" id="rsBox"></div>';
   d.el.innerHTML = `<p class="mini">${esc(b.code)} · booked ${new Date(b.created_at).toLocaleString('en-PH')} · ${esc(b.source)}</p>
    <div class="box" style="margin-top:14px"><dl class="kv"><dt>Status</dt><dd>${stBadge(b.status)}</dd><dt>Service</dt><dd>${esc(b.service)}</dd>
     <dt>When</dt><dd>${fmtDate(b.date)} · ${fmtTime(b.start_min)} – ${fmtTime(b.start_min + b.duration_min)}</dd><dt>Specialist</dt><dd>${esc(b.practitioner_name || '—')}</dd>
     <dt>Estimated total</dt><dd>${b.price ? peso(b.price) : 'Free'}</dd></dl></div>
-   <h4>Update status</h4><div class="toolbar">${STATUSES.filter(s => s !== b.status).map(s => `<button class="btn sm ${['cancelled', 'noshow'].includes(s) ? 'line' : ''}" data-st="${s}">${s === 'confirmed' ? 'Confirm' : 'Mark ' + stLabel(s)}</button>`).join('')}</div>
-   <label class="chk"><input type="checkbox" id="notify" ${canMail ? 'checked' : 'disabled'}><span>Email the client about this change ${EMAIL_ON ? (b.client_email ? '' : '(no email on file)') : '(email not set up yet)'}</span></label>
+   ${statusControls}
    <h4>Client</h4><div class="box"><dl class="kv">
     <dt>Phone</dt><dd><a href="tel:${esc(b.client_phone)}">${esc(b.client_phone)}</a></dd><dt>Email</dt><dd>${b.client_email ? `<a href="mailto:${esc(b.client_email)}">${esc(b.client_email)}</a>` : '—'}</dd>
     <dt>Age</dt><dd>${esc(b.client_age ?? '—')}</dd><dt>Concerns</dt><dd>${esc(b.concerns || '—')}</dd><dt>Allergies</dt><dd>${esc(b.allergies || '—')}</dd>
     <dt>Pregnant / BF</dt><dd>${esc(b.pregnant || '—')}</dd><dt>Medications</dt><dd>${esc(b.medications || '—')}</dd><dt>Client notes</dt><dd>${esc(b.notes || '—')}</dd>
     <dt>Consent</dt><dd>${b.consent_at ? new Date(b.consent_at).toLocaleString('en-PH') : 'n/a (staff booking)'}</dd></dl>
     ${b.photo ? `<a href="${b.photo}" target="_blank" rel="noopener"><img src="${b.photo}" alt="Client photo" style="max-width:200px;border-radius:8px;margin-top:12px"></a>` : ''}
-    <div style="margin-top:12px"><button class="btn sm line" id="editClient">Edit details</button></div></div>
-   <h4>Staff notes (private)</h4><textarea id="snotes" placeholder="e.g. prefers Jasmine, paid ₱500 deposit">${esc(b.staff_notes)}</textarea><div style="margin-top:8px;text-align:right"><button class="btn sm" id="saveNotes">Save notes</button></div>
-   <h4>Reschedule</h4><div class="box" id="rsBox"></div>
+    ${clientEdit}</div>
+   <h4>Staff notes (private)</h4>${staffNotes}
+   ${reschedule}
    <h4>Send a message</h4><div class="toolbar"><select id="tplSel" class="grow">${SETTINGS.templates.map(x => `<option value="${x.key}">${esc(x.name)}</option>`).join('')}</select>
     <button class="btn sm line" id="copyMsg">Copy</button>${canMail ? '<button class="btn sm" id="mailMsg">Email it</button>' : ''}</div><pre class="tpl" id="msgPrev"></pre>
    ${ME.role === 'admin' ? `<h4 class="danger-text">Delete</h4><p class="mini">Permanently removes this booking and the client's health information – use for data-deletion requests. To cancel, use "Mark cancelled".</p><button class="btn sm danger" id="delB" style="margin-top:8px">Delete permanently</button>` : ''}`;
-  $$('[data-st]', d.el).forEach(x => x.onclick = async () => { await run(() => api('/bookings/' + id, { method: 'PATCH', body: { status: x.dataset.st, notify: $('#notify', d.el).checked } }), 'Status updated'); refresh(); });
-  $('#saveNotes', d.el).onclick = () => run(() => api('/bookings/' + id, { method: 'PATCH', body: { staff_notes: $('#snotes', d.el).value } }), 'Notes saved');
+  if (!completed) {
+    $$('[data-st]', d.el).forEach(x => x.onclick = async () => { await run(() => api('/bookings/' + id, { method: 'PATCH', body: { status: x.dataset.st, notify: $('#notify', d.el).checked } }), 'Status updated'); refresh(); });
+    $('#saveNotes', d.el).onclick = () => run(() => api('/bookings/' + id, { method: 'PATCH', body: { staff_notes: $('#snotes', d.el).value } }), 'Notes saved');
+    $('#editClient', d.el).onclick = () => editClient(b, refresh);
+    slotPicker($('#rsBox', d.el), { bookingId: id, date: b.date, prac: b.practitioner_id, current: b.start_min, label: 'Move booking', onPick: async (date, start, prac, force) => {
+      await run(() => api(`/bookings/${id}/reschedule`, { method: 'POST', body: { date, start, prac, force, notify: $('#notify', d.el).checked } }), 'Booking moved'); refresh();
+    } });
+  }
   const prev = async () => { const r = await run(() => api(`/bookings/${id}/message/${$('#tplSel', d.el).value}`)); $('#msgPrev', d.el).textContent = r.body; return r; };
   $('#tplSel', d.el).onchange = prev; quiet(prev());
   $('#copyMsg', d.el).onclick = async () => { const r = await prev(); try { await navigator.clipboard.writeText(r.body); toast('Copied – paste it into SMS, Viber or Messenger'); } catch { toast('Select the text and copy it manually.'); } };
   if ($('#mailMsg', d.el)) $('#mailMsg', d.el).onclick = () => run(() => api(`/bookings/${id}/email/${$('#tplSel', d.el).value}`, { method: 'POST' }), 'Email sent');
   if ($('#delB', d.el)) $('#delB', d.el).onclick = async () => { if (!confirm(`Delete booking ${b.code} permanently? This cannot be undone.`)) return; await run(() => api('/bookings/' + id, { method: 'DELETE' }), 'Booking deleted'); d.close(); after && after(); };
-  $('#editClient', d.el).onclick = () => editClient(b, refresh);
-  slotPicker($('#rsBox', d.el), { bookingId: id, date: b.date, prac: b.practitioner_id, current: b.start_min, label: 'Move booking', onPick: async (date, start, prac, force) => {
-    await run(() => api(`/bookings/${id}/reschedule`, { method: 'POST', body: { date, start, prac, force, notify: $('#notify', d.el).checked } }), 'Booking moved'); refresh();
-  } });
 }
 function clientFields(c = {}) {
   const v = k => esc(c[k] ?? '');
@@ -548,7 +561,8 @@ VIEWS.site = async el => {
     ${inp('s_hn', 'Hours note (shown under opening hours)', site.hoursNote)}${inp('s_meta', 'Google search description', site.metaDescription, 'text', 'maxlength="160"')}
     ${inp('s_map', 'Exact map pin (optional) – Google Maps → Share → Embed a map → copy the link inside src="…"', site.mapEmbedUrl, 'url', 'placeholder="Leave empty to place the pin using the address"')}</div>
    <div class="box"><h3>Social & chat</h3><p class="mini">Footer icons only appear for links you fill in.</p><div class="row3"><div>${inp('s_fb', 'Facebook page link', site.social.facebook, 'url', 'placeholder="https://facebook.com/…"')}</div><div>${inp('s_ig', 'Instagram link', site.social.instagram, 'url', 'placeholder="https://instagram.com/…"')}</div><div>${inp('s_tt', 'TikTok link', site.social.tiktok, 'url', 'placeholder="https://tiktok.com/@…"')}</div></div>
-    <div class="row3"><div>${inp('s_ms', 'Messenger page username (m.me/____)', site.chat.messenger)}</div><div>${inp('s_vb', 'Viber number (+63…)', site.chat.viber)}</div><div>${inp('s_wa', 'WhatsApp number (63…)', site.chat.whatsapp)}</div></div></div>
+    <div class="row3"><div>${inp('s_ms', 'Messenger page username (m.me/____)', site.chat.messenger)}</div><div>${inp('s_vb', 'Viber number (+63…)', site.chat.viber)}</div><div>${inp('s_wa', 'WhatsApp number (63…)', site.chat.whatsapp)}</div></div>
+    <div class="nav-row"><span></span><button class="btn" id="saveSocial">Save social & chat</button></div></div>
    <div class="box"><h3>Page text</h3>${inp('s_tri', 'Treatments page intro', site.treatmentsIntro)}${inp('s_rn', 'Results page note', site.resultsNote)}${inp('s_tmi', 'Team page intro', site.teamIntro)}
     ${ta('s_pre', 'Before-your-visit tips (one per line)', site.preTreatment.join('\n'), 140)}${ta('s_priv', 'Privacy policy', site.privacyText, 200)}
     <div class="nav-row"><span></span><button class="btn" id="saveSite">Save clinic info</button></div></div>
@@ -562,6 +576,12 @@ VIEWS.site = async el => {
     social: { facebook: v('s_fb'), instagram: v('s_ig'), tiktok: v('s_tt') }, chat: { whatsapp: v('s_wa'), viber: v('s_vb'), messenger: v('s_ms') },
     badges: site.badges.map((b, i) => ({ icon: b.icon, title: v('bt' + i), text: v('bx' + i) })), loyalty: { title: v('l_t'), text: v('l_x'), cardTitle: v('l_ct'), cardText: v('l_cx') },
     preTreatment: v('s_pre').split('\n').map(x => x.trim()).filter(Boolean), privacyText: v('s_priv') });
+  $('#saveSocial', el).onclick = async () => {
+    const updated = { ...site, social: { facebook: v('s_fb'), instagram: v('s_ig'), tiktok: v('s_tt') },
+      chat: { whatsapp: v('s_wa'), viber: v('s_vb'), messenger: v('s_ms') } };
+    const saved = await run(() => api('/settings/site', { method: 'PUT', body: updated }), 'Social & chat links saved');
+    SETTINGS = { ...s, site: saved.value };
+  };
   $('#saveSite', el).onclick = () => {
     if (v('s_map') && !/^https:\/\/(www\.)?google\.com\/maps\/embed/.test(v('s_map'))) return toast('The map link must start with https://www.google.com/maps/embed', true);
     run(() => api('/settings/site', { method: 'PUT', body: siteValue() }), 'Clinic info saved');

@@ -81,6 +81,7 @@ async function reschedule(id, { date, start, practitionerId }, opts = {}) {
     await db.query('SELECT pg_advisory_xact_lock(hashtext($1))', ['booking:' + date]);
     const b = await getById(id, db);
     if (!b) throw new HttpError(404, 'Booking not found.');
+    if (b.status === 'completed') throw new HttpError(409, 'Completed bookings are locked and cannot be changed.');
     let prac = practitionerId && practitionerId !== 'any' ? Number(practitionerId) : 'any';
     if (!opts.force) {
       const slot = (await slotsFor(cfg, date, b.duration_min, { prac, ignoreId: b.id, staff: !!opts.staff }, db)).find(s => s.t === Number(start));
@@ -88,8 +89,9 @@ async function reschedule(id, { date, start, practitionerId }, opts = {}) {
       prac = slot.prac;
     } else if (prac === 'any') prac = b.practitioner_id;
     const status = opts.staff ? b.status : 'pending';
-    await db.query(`UPDATE bookings SET date=$1, start_min=$2, practitioner_id=$3, status=$4, total_min=duration_min+$5, reminder_sent_at=NULL, updated_at=now() WHERE id=$6`,
+    const { rowCount } = await db.query(`UPDATE bookings SET date=$1, start_min=$2, practitioner_id=$3, status=$4, total_min=duration_min+$5, reminder_sent_at=NULL, updated_at=now() WHERE id=$6 AND status <> 'completed'`,
       [date, Number(start), prac, status, cfg.buffer, b.id]);
+    if (!rowCount) throw new HttpError(409, 'Completed bookings are locked and cannot be changed.');
     return getById(b.id, db);
   });
 }
