@@ -51,12 +51,12 @@ app.use('/api', (req, res) => res.status(404).json({ error: 'Not found' }));
 
 const pub = path.join(__dirname, '..', 'public');
 const adminHtml = path.join(__dirname, 'views', 'admin.html');
-// Staff dashboard lives at ADMIN_PATH (default /admin). It is not linked anywhere on the public site.
+// Staff sign-in and dashboard share a private entry URL and are not linked publicly.
 app.get([config.adminPath, config.adminPath + '/*'], (req, res) => {
   res.set({ 'Cache-Control': 'no-store', 'X-Robots-Tag': 'noindex, nofollow' });
   res.sendFile(adminHtml);
 });
-if (config.adminPath !== '/admin') app.use(/^\/admin(\/|$)/, (req, res) => res.redirect('/')); // hide the default address
+app.use(/^\/admin(\/|$)/, (req, res) => res.redirect('/'));
 // (the staff page is kept out of search engines with a noindex header, not listed here, so its address stays private)
 app.get('/robots.txt', (req, res) => res.type('text/plain').send('User-agent: *\nDisallow: /api/\n'));
 app.use(express.static(pub, { index: 'index.html', maxAge: config.isProd ? '1h' : 0, setHeaders: (res, p) => { if (p.endsWith('.html')) res.set('Cache-Control', 'no-cache'); } }));

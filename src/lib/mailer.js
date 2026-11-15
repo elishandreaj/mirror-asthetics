@@ -59,7 +59,7 @@ async function notifyClinic(b) {
   const { site } = await settings.getAll();
   const to = config.notifyEmail || site.email;
   const text = `New online booking (${b.status})\n\nRef: ${b.code}\nClient: ${b.client_name} · ${b.client_phone} · ${b.client_email}\nService: ${b.service}\n` +
-    `Specialist: ${b.practitioner_name || 'Any'}\nDate: ${T.fmtDate(b.date)} ${T.fmtTime(b.start_min)}\n\nOpen the admin dashboard to confirm: ${config.publicUrl}/admin/`;
+    `Specialist: ${b.practitioner_name || 'Any'}\nDate: ${T.fmtDate(b.date)} ${T.fmtTime(b.start_min)}\n\nOpen the admin dashboard to confirm: ${config.publicUrl}${config.adminPath}`;
   return send({ to, subject: `New booking ${b.code} – ${T.fmtDate(b.date)} ${T.fmtTime(b.start_min)}`, text });
 }
 module.exports = { enabled, send, sendTemplate, notifyClinic, fill };
