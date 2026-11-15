@@ -99,6 +99,7 @@ r.post('/bookings', ah(async (req, res) => {
 r.patch('/bookings/:id', ah(async (req, res) => {
   const id = int(req.params.id);
   const b = await B.getById(id); if (!b) throw new HttpError(404, 'Booking not found.');
+  if (b.status === 'completed') throw new HttpError(409, 'Completed bookings are locked and cannot be changed.');
   const sets = [], p = [];
   const set = (col, v) => { p.push(v); sets.push(`${col} = $${p.length}`); };
   if (req.body.status !== undefined) {
@@ -117,7 +118,8 @@ r.patch('/bookings/:id', ah(async (req, res) => {
   }
   if (!sets.length) return res.json({ booking: b });
   p.push(id);
-  await query(`UPDATE bookings SET ${sets.join(', ')}, updated_at = now() WHERE id = $${p.length}`, p);
+  const { rowCount } = await query(`UPDATE bookings SET ${sets.join(', ')}, updated_at = now() WHERE id = $${p.length} AND status <> 'completed'`, p);
+  if (!rowCount) throw new HttpError(409, 'Completed bookings are locked and cannot be changed.');
   const nb = await B.getById(id);
   A.audit(req.user, 'update', 'booking', id, { status: req.body.status, from: b.status });
   if (req.body.status && req.body.status !== b.status && bool(req.body.notify) && ['confirmed', 'cancelled'].includes(req.body.status)) mailer.sendTemplate(req.body.status, nb);
