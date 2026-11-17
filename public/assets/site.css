@@ -148,7 +148,7 @@ em,.it{font-style:italic}
 .sig h3{font-size:clamp(1.4rem,3vw,1.9rem)}
 .sig p{color:var(--muted);font-size:.93rem;margin-top:4px}
 .sig .pr{text-align:right;font-size:.9rem;color:var(--ink-2);white-space:nowrap}
-.sig .pr b{display:block;font:500 1.25rem var(--serif);color:var(--ink)}
+.sig .pr b{display:block;font:600 1.55rem var(--serif);color:var(--ink)}
 @media(max-width:560px){.sig a{grid-template-columns:auto 1fr}.sig .pr{grid-column:2;text-align:left}.sig .pr b{display:inline;margin-right:6px}}
 
 /* offers */
@@ -209,7 +209,7 @@ em,.it{font-style:italic}
 .trow h3{font:500 1.25rem var(--serif)}
 .trow p{color:var(--muted);font-size:.92rem;margin-top:2px}
 .trow .side{display:flex;align-items:center;gap:18px;justify-content:flex-end}
-.trow .price{font:700 1.5rem var(--serif);white-space:nowrap}
+.trow .price{font:600 1.55rem var(--serif);white-space:nowrap}
 .trow .price small{font:500 .72rem var(--sans);letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-right:6px}
 .tcat-body .pad{height:14px}
 @media(max-width:640px){.trow{grid-template-columns:1fr;padding-left:4px}.trow .side{justify-content:space-between}.tcat-head .num{display:none}}
