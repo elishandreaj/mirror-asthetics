@@ -426,7 +426,7 @@ async function renderSlots(box, nav) {
   try { if (!B.slots) B.slots = (await api('/availability/day', { date: B.date, prac: B.prac, ...svcBody() })).slots; }
   catch (e) { box.innerHTML = head + `<p class="err">${esc(e.message)}</p>` + nav(false); wireNav(); return; }
   if (B.step !== 4) return;
-  const sl = B.slots, groups = [['Morning', s => s.t < 720], ['Afternoon', s => s.t >= 720 && s.t < 1020], ['Evening', s => s.t >= 1020]];
+  const sl = B.slots, groups = [['Morning', s => s.t < 720], ['Afternoon', s => s.t >= 720 && s.t < 1080], ['Evening', s => s.t >= 1080]];
   box.innerHTML = head + groups.map(([n, f]) => { const g = sl.filter(f); return g.length ? `<p class="eyebrow" style="margin-top:18px">${n}</p><div class="slots">${g.map(s => `<button class="slot ${B.time === s.t ? 'sel' : ''}" data-t="${s.t}" ${s.ok ? '' : 'disabled'}>${fmtTime(s.t)}</button>`).join('')}</div>` : ''; }).join('')
     + `${sl.some(s => s.ok) ? '' : '<p class="err" style="margin-top:14px">No times left on this day. Please go back and pick another date.</p>'}${nav(B.time != null)}`;
   $$('.slot', box).forEach(b => b.onclick = () => { B.time = Number(b.dataset.t); $$('.slot', box).forEach(x => x.classList.toggle('sel', x === b)); $('#bNext').disabled = false; });
@@ -518,7 +518,7 @@ function renderConfirmation(box) {
   const b = B.done, confirmed = b.status === 'confirmed';
   $('#stepper').innerHTML = '';
   box.innerHTML = `<div class="done-head"><div class="seal">${ic('check')}</div><h3>${B.resched ? 'Your booking has been moved' : confirmed ? "You're booked" : 'Booking received'}</h3>
-  <p class="muted">${confirmed ? 'Your appointment is confirmed.' : 'Status: pending – our team will confirm it shortly.'} Keep your reference code:</p><div class="code">${esc(b.code)}</div></div>
+  <p class="muted">${confirmed ? 'Your appointment is confirmed.' : 'Status: pending – our team will confirm it shortly.'} ${B.resched ? 'Your reference code stays the same:' : 'Keep your reference code:'}</p><div class="code">${esc(b.code)}</div></div>
   ${summaryHTML({ ...b })}
   <p class="eyebrow" style="margin:24px 0 8px">Before your visit</p><ul style="padding-left:18px;color:var(--ink-2);font-size:.94rem">${(S.site.preTreatment || []).map(x => `<li style="margin:6px 0">${esc(x)}</li>`).join('')}</ul>
   <div class="nav-row"><a class="btn line" target="_blank" rel="noopener" href="${gcalLink(b)}">${ic('calendar')}Add to Google Calendar</a><a class="btn" href="#home" id="doneBtn">Done</a></div>
