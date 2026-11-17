@@ -75,7 +75,7 @@ const templates = [
     body: 'Hi {name}, your booking {code} for {date} at {time} has been cancelled. We hope to see you soon – book again anytime at {site_link}.' },
   { key: 'aftercare', name: 'Post-treatment aftercare (copy & send)', subject: 'Aftercare tips from Mirror Aesthetics',
     body: 'Thank you for visiting, {name}! Aftercare: wear SPF 30+, avoid hot showers/saunas for 24h, skip retinol and exfoliants for 3 days, and keep skin moisturised. Questions? {clinic_phone}.' },
-  { key: 'followup', name: 'Follow-up & review request (copy & send)', subject: 'How is your skin feeling?',
+  { key: 'followup', name: 'Follow-up & review request (automatically sent 3 days after completion)', subject: 'How is your skin feeling?',
     body: 'Hi {name}, how is your skin feeling? We\'d love your feedback — a quick review helps others find us. Book your next session anytime: {site_link}' },
 ];
 

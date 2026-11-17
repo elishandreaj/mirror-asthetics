@@ -27,17 +27,18 @@ const enabled = () => !!transport;
 
 function emailHtml(text, clinicName) {
   const escapeHtml = value => String(value).replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]);
-  const details = /^(Service|Specialist|Date|Time|Estimated total|Reference code|Ref|Status|Address):\s*(.*)$/i;
+  const details = /^(Service|Specialist|Date|Time|Estimated total|Reference code|Booking code|Code|Ref|Status|Address):\s*(.*)$/i;
   const signatureNames = [clinicName, 'Mirror Aesthetics'].filter(Boolean);
   const lines = String(text).split(/\r?\n/);
   const htmlLines = lines.map(line => {
     const trimmed = line.trim();
     if (!trimmed) return '<div style="height:12px;line-height:12px">&nbsp;</div>';
-    if (signatureNames.some(name => trimmed.startsWith(`${name} ·`))) {
-      return `<div style="margin-top:30px;font-size:20px;line-height:1.4;font-weight:700">${escapeHtml(trimmed)}</div>`;
+    const signature = /^(.+?)\s*[·•]\s*(.+)$/.exec(trimmed);
+    if (signature && signatureNames.some(name => signature[1].trim() === name)) {
+      return `<div style="margin-top:32px;padding-top:18px;border-top:1px solid #d8cfc2"><div style="font-size:22px;line-height:1.3;font-weight:700;letter-spacing:.02em">${escapeHtml(signature[1].trim())}</div><div style="margin-top:5px;font-size:15px;font-weight:600;color:#5d554d">Clinic contact: ${escapeHtml(signature[2].trim())}</div></div>`;
     }
     const match = details.exec(trimmed);
-    if (match) return `<div style="margin:5px 0"><strong>${escapeHtml(match[1])}:</strong> <strong>${escapeHtml(match[2])}</strong></div>`;
+    if (match) return `<div style="margin:7px 0;padding:8px 10px;background:#f7f4ec;border-radius:4px"><strong>${escapeHtml(match[1])}:</strong> <strong>${escapeHtml(match[2])}</strong></div>`;
     return `<div style="margin:5px 0">${escapeHtml(line)}</div>`;
   });
   return `<div style="font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.6;color:#24211f">${htmlLines.join('')}</div>`;

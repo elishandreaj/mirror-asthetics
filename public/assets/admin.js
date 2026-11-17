@@ -153,6 +153,7 @@ function bookingTable(list, emptyMsg) {
   ${list.map(b => `<tr class="click" data-open="${b.id}"><td>${fmtDate(b.date)}</td><td>${fmtTime(b.start)}</td><td><b>${esc(b.client)}</b><br><span class="mini">${esc(b.code)} · ${esc(b.phone)}</span></td>
    <td>${esc(b.service)}</td><td>${esc(b.practitioner || '—')}</td><td>${stBadge(b.status)}</td></tr>`).join('')}</tbody></table></div>`;
 }
+const fromFull = b => ({ id: b.id, code: b.code, date: b.date, start: b.start_min, client: b.client_name, phone: b.client_phone, service: b.service, practitioner: b.practitioner_name, status: b.status });
 function wireOpen(root, after) { $$('[data-open]', root).forEach(r => r.onclick = () => openBooking(Number(r.dataset.open), after)); }
 
 async function openBooking(id, after) {
@@ -555,7 +556,7 @@ VIEWS.site = async el => {
     ${ta('s_pre', 'Before-your-visit tips (one per line)', site.preTreatment.join('\n'), 140)}${ta('s_priv', 'Privacy policy', site.privacyText, 200)}
     <div class="nav-row"><span></span><button class="btn" id="saveSite">Save clinic info</button></div></div>
    <div class="box"><h3>Message templates</h3><p class="mini">Placeholders: {name} {code} {service} {specialist} {date} {time} {status} {total} {clinic_phone} {clinic_address} {cancel_hours} {manage_link} {site_link}</p>
-    ${s.templates.map((x, i) => `${h4(esc(x.name))}${inp('tp_s' + i, 'Subject', x.subject)}${ta('tp_b' + i, 'Message', x.body, 150)}`).join('')}
+    ${s.templates.map((x, i) => `${h4(esc(x.key === 'followup' ? 'Follow-up & review request (automatically sent 3 days after completion)' : x.name))}${inp('tp_s' + i, 'Subject', x.subject)}${ta('tp_b' + i, 'Message', x.body, 150)}`).join('')}
     <div class="nav-row"><span></span><button class="btn" id="saveTp">Save templates</button></div></div>`;
   wireDrops(el);
   const v = id => fv(el, id);
