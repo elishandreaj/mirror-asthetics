@@ -39,7 +39,8 @@ function emailHtml(text, clinicName) {
     }
     const match = details.exec(trimmed);
     if (match) return `<div style="margin:7px 0;padding:8px 10px;background:#f7f4ec;border-radius:4px"><strong>${escapeHtml(match[1])}:</strong> <strong>${escapeHtml(match[2])}</strong></div>`;
-    return `<div style="margin:5px 0">${escapeHtml(line)}</div>`;
+    const formattedLine = escapeHtml(line).replace(/\bCONFIRMED\b/g, '<strong>CONFIRMED</strong>');
+    return `<div style="margin:5px 0">${formattedLine}</div>`;
   });
   return `<div style="font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.6;color:#24211f">${htmlLines.join('')}</div>`;
 }

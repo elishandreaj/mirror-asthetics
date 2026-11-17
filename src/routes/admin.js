@@ -384,6 +384,7 @@ r.put('/settings/:key', A.requireAdmin, ah(async (req, res) => {
     if (v.closeHour <= v.openHour) throw new HttpError(400, 'Closing hour must be after opening hour.');
     v.slotStep = n(v.slotStep, 5, 120, 'Slot step'); v.buffer = n(v.buffer, 0, 120, 'Buffer'); v.minNoticeMin = n(v.minNoticeMin, 0, 2880, 'Minimum notice');
     v.cancelHours = n(v.cancelHours, 0, 168, 'Cancellation hours'); v.maxAdvanceDays = n(v.maxAdvanceDays, 1, 365, 'Max advance days');
+    v.followupDelayDays = n(v.followupDelayDays, 1, 30, 'Follow-up delay (days)');
     v.closedDays = (Array.isArray(v.closedDays) ? v.closedDays : []).map(Number).filter(d => d >= 0 && d <= 6);
     v.onlineBookingEnabled = bool(v.onlineBookingEnabled);
     v.autoConfirm = bool(v.autoConfirm);
