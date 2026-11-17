@@ -209,7 +209,7 @@ em,.it{font-style:italic}
 .trow h3{font:500 1.25rem var(--serif)}
 .trow p{color:var(--muted);font-size:.92rem;margin-top:2px}
 .trow .side{display:flex;align-items:center;gap:18px;justify-content:flex-end}
-.trow .price{font:500 1.2rem var(--serif);white-space:nowrap}
+.trow .price{font:700 1.5rem var(--serif);white-space:nowrap}
 .trow .price small{font:500 .72rem var(--sans);letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-right:6px}
 .tcat-body .pad{height:14px}
 @media(max-width:640px){.trow{grid-template-columns:1fr;padding-left:4px}.trow .side{justify-content:space-between}.tcat-head .num{display:none}}

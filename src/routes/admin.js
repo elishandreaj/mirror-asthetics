@@ -1,18 +1,26 @@
 const express = require('express');
+const fs = require('fs/promises');
 const rateLimit = require('express-rate-limit');
 const { query, tx } = require('../db');
 const settings = require('../lib/settings');
 const B = require('../lib/bookings');
 const { slotsFor } = require('../lib/availability');
 const { validateClient } = require('../lib/validate');
-const { upload, saveImage, deleteMedia, mediaUrl } = require('../lib/media');
+const { upload, galleryUpload, saveImage, deleteMedia, mediaUrl } = require('../lib/media');
 const mailer = require('../lib/mailer');
+const reminders = require('../lib/reminders');
 const A = require('../lib/auth');
 const T = require('../lib/time');
 const { ah, HttpError, str, int, bool } = require('../lib/util');
 
 const r = express.Router();
 const STATUSES = ['pending', 'confirmed', 'completed', 'cancelled', 'noshow'];
+const sendAutomaticEmail = (key, booking) => {
+  mailer.sendTemplate(key, booking).catch(error => console.error(`Automatic ${key} email failed`, error.message));
+};
+const runCompletionEmails = () => {
+  reminders.runCompletionEmails().catch(error => console.error('Completion email job failed', error.message));
+};
 
 /* ---------------------------------------------------------------- AUTH */
 const loginLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: 10, standardHeaders: true, legacyHeaders: false, message: { error: 'Too many login attempts. Try again in 15 minutes.' } });
@@ -92,7 +100,8 @@ r.post('/bookings', ah(async (req, res) => {
   const b = await B.create({ type: req.body.type, treatmentIds: req.body.treatmentIds, practitionerId: req.body.prac, date: req.body.date, start: req.body.start,
     client, source: str(req.body.source, 20) || 'admin', status, staffNotes: str(req.body.staffNotes, 2000) }, { staff: true, force: bool(req.body.force) });
   A.audit(req.user, 'create', 'booking', b.id, { code: b.code });
-  if (bool(req.body.notify)) mailer.sendTemplate(status === 'confirmed' ? 'confirmed' : 'received', b);
+  if (status === 'completed') runCompletionEmails();
+  else sendAutomaticEmail(status === 'confirmed' ? 'confirmed' : 'received', b);
   res.status(201).json({ booking: b });
 }));
 
@@ -106,6 +115,7 @@ r.patch('/bookings/:id', ah(async (req, res) => {
     if (!STATUSES.includes(req.body.status)) throw new HttpError(400, 'Invalid status.');
     set('status', req.body.status);
     if (req.body.status === 'cancelled') sets.push('cancelled_at = now()');
+    if (req.body.status === 'completed') sets.push('completed_at = now()');
   }
   if (req.body.staff_notes !== undefined) set('staff_notes', str(req.body.staff_notes, 4000));
   if (req.body.client) {
@@ -122,14 +132,20 @@ r.patch('/bookings/:id', ah(async (req, res) => {
   if (!rowCount) throw new HttpError(409, 'Completed bookings are locked and cannot be changed.');
   const nb = await B.getById(id);
   A.audit(req.user, 'update', 'booking', id, { status: req.body.status, from: b.status });
-  if (req.body.status && req.body.status !== b.status && bool(req.body.notify) && ['confirmed', 'cancelled'].includes(req.body.status)) mailer.sendTemplate(req.body.status, nb);
+  if (req.body.status && req.body.status !== b.status) {
+    if (req.body.status === 'completed') runCompletionEmails();
+    else {
+      const emailKey = { pending: 'received', confirmed: 'confirmed', cancelled: 'cancelled' }[req.body.status];
+      if (emailKey) sendAutomaticEmail(emailKey, nb);
+    }
+  }
   res.json({ booking: nb });
 }));
 
 r.post('/bookings/:id/reschedule', ah(async (req, res) => {
   const nb = await B.reschedule(int(req.params.id), { date: req.body.date, start: req.body.start, practitionerId: req.body.prac }, { staff: true, force: bool(req.body.force) });
   A.audit(req.user, 'reschedule', 'booking', nb.id, { date: nb.date, start: nb.start_min });
-  if (bool(req.body.notify)) mailer.sendTemplate('rescheduled', nb);
+  sendAutomaticEmail('rescheduled', nb);
   res.json({ booking: nb });
 }));
 
@@ -138,20 +154,6 @@ r.delete('/bookings/:id', A.requireAdmin, ah(async (req, res) => {
   await tx(async db => { await db.query('DELETE FROM bookings WHERE id=$1', [b.id]); if (b.photo_id) await deleteMedia(b.photo_id, db); });
   A.audit(req.user, 'delete', 'booking', b.id, { code: b.code, client: b.client_name });
   res.json({ ok: true });
-}));
-
-// Filled-in message text for copy & paste into SMS / Viber / Messenger
-r.get('/bookings/:id/message/:key', ah(async (req, res) => {
-  const b = await B.getById(int(req.params.id)); if (!b) throw new HttpError(404, 'Booking not found.');
-  const tpl = (await settings.get('templates')).find(t => t.key === req.params.key); if (!tpl) throw new HttpError(404, 'Template not found.');
-  res.json({ subject: await mailer.fill(tpl.subject, b), body: await mailer.fill(tpl.body, b) });
-}));
-r.post('/bookings/:id/email/:key', ah(async (req, res) => {
-  const b = await B.getById(int(req.params.id)); if (!b) throw new HttpError(404, 'Booking not found.');
-  if (!mailer.enabled()) throw new HttpError(400, 'Email is not set up yet (add BREVO_API_KEY or SMTP settings). Use "Copy message" instead.');
-  if (!b.client_email) throw new HttpError(400, 'This client has no email address.');
-  const ok = await mailer.sendTemplate(req.params.key, b); if (!ok) throw new HttpError(502, 'Email could not be sent. Check the email settings.');
-  A.audit(req.user, 'email', 'booking', b.id, { template: req.params.key }); res.json({ ok: true });
 }));
 
 r.post('/availability/day', ah(async (req, res) => {
@@ -213,39 +215,47 @@ r.get('/media/:id', ah(async (req, res) => {
 
 /* ---------------------------------------------------------------- GALLERY (before & after) – staff allowed */
 const galleryView = g => ({ ...g, before: mediaUrl(g.before_id), after: mediaUrl(g.after_id) });
-r.get('/gallery', ah(async (req, res) => { const { rows } = await query('SELECT * FROM gallery ORDER BY sort, id DESC'); res.json({ items: rows.map(galleryView) }); }));
+r.get('/gallery', A.requireAdmin, ah(async (req, res) => { const { rows } = await query('SELECT * FROM gallery ORDER BY sort, id DESC'); res.json({ items: rows.map(galleryView) }); }));
 async function treatmentName(id) { if (!id) return null; const { rows } = await query('SELECT name FROM treatments WHERE id=$1', [id]); return rows[0]?.name || null; }
-const galUpload = upload.fields([{ name: 'before', maxCount: 1 }, { name: 'after', maxCount: 1 }]);
-r.post('/gallery', galUpload, ah(async (req, res) => {
-  const f = req.body;
-  const tid = int(f.treatment_id) || null, tname = await treatmentName(tid);
-  if (!str(f.title) && !tname) throw new HttpError(400, 'Choose a treatment or add a title.');
-  if (!req.files?.before || !req.files?.after) throw new HttpError(400, 'Upload both a BEFORE and an AFTER photo.');
-  if (!bool(f.consent)) throw new HttpError(400, "Confirm you have the client's written consent to publish these photos.");
-  const before = await saveImage(req.files.before[0].buffer), after = await saveImage(req.files.after[0].buffer);
-  const { rows } = await query(`INSERT INTO gallery(title, treatment_label, treatment_id, sessions, caption, before_id, after_id, consent_confirmed, published, sort) VALUES ($1,$2,$3,$4,$5,$6,$7,true,$8,$9) RETURNING *`,
-    [str(f.title, 120) || tname, str(f.treatment, 120) || tname || '', tid, str(f.sessions, 60), str(f.caption, 500), before, after, f.published === undefined ? true : bool(f.published), int(f.sort) || 0]);
-  A.audit(req.user, 'create', 'gallery', rows[0].id, { title: rows[0].title }); res.status(201).json({ item: galleryView(rows[0]) });
+const galUpload = galleryUpload.fields([{ name: 'before', maxCount: 1 }, { name: 'after', maxCount: 1 }]);
+async function removeGalleryTempFiles(files) {
+  const paths = Object.values(files || {}).flat().map(file => file.path).filter(Boolean);
+  await Promise.all(paths.map(filePath => fs.unlink(filePath)));
+}
+r.post('/gallery', A.requireAdmin, galUpload, ah(async (req, res) => {
+  try {
+    const f = req.body;
+    const tid = int(f.treatment_id) || null, tname = await treatmentName(tid);
+    if (!str(f.title) && !tname) throw new HttpError(400, 'Choose a treatment or add a title.');
+    if (!req.files?.before || !req.files?.after) throw new HttpError(400, 'Upload both a BEFORE and an AFTER photo.');
+    if (!bool(f.consent)) throw new HttpError(400, "Confirm you have the client's written consent to publish these photos.");
+    const before = await saveImage(req.files.before[0].path), after = await saveImage(req.files.after[0].path);
+    const { rows } = await query(`INSERT INTO gallery(title, treatment_label, treatment_id, sessions, caption, before_id, after_id, consent_confirmed, published, sort) VALUES ($1,$2,$3,$4,$5,$6,$7,true,$8,$9) RETURNING *`,
+      [str(f.title, 120) || tname, str(f.treatment, 120) || tname || '', tid, str(f.sessions, 60), str(f.caption, 500), before, after, f.published === undefined ? true : bool(f.published), int(f.sort) || 0]);
+    A.audit(req.user, 'create', 'gallery', rows[0].id, { title: rows[0].title }); res.status(201).json({ item: galleryView(rows[0]) });
+  } finally { await removeGalleryTempFiles(req.files); }
 }));
-r.patch('/gallery/:id', galUpload, ah(async (req, res) => {
-  const id = int(req.params.id); const { rows: [g] } = await query('SELECT * FROM gallery WHERE id=$1', [id]); if (!g) throw new HttpError(404, 'Not found');
-  const f = req.body; const upd = { title: g.title, treatment_label: g.treatment_label, caption: g.caption, published: g.published, sort: g.sort, before_id: g.before_id, after_id: g.after_id };
-  if (f.title !== undefined) upd.title = str(f.title, 120) || g.title;
-  if (f.treatment !== undefined) upd.treatment_label = str(f.treatment, 120);
-  if (f.caption !== undefined) upd.caption = str(f.caption, 500);
-  upd.sessions = f.sessions !== undefined ? str(f.sessions, 60) : g.sessions;
-  upd.treatment_id = f.treatment_id !== undefined ? (int(f.treatment_id) || null) : g.treatment_id;
-  if (f.published !== undefined) upd.published = bool(f.published);
-  if (f.sort !== undefined) upd.sort = int(f.sort) || 0;
-  const old = [];
-  if (req.files?.before) { old.push(g.before_id); upd.before_id = await saveImage(req.files.before[0].buffer); }
-  if (req.files?.after) { old.push(g.after_id); upd.after_id = await saveImage(req.files.after[0].buffer); }
-  const { rows } = await query(`UPDATE gallery SET title=$1, treatment_label=$2, caption=$3, published=$4, sort=$5, before_id=$6, after_id=$7, sessions=$8, treatment_id=$9 WHERE id=$10 RETURNING *`,
-    [upd.title, upd.treatment_label, upd.caption, upd.published, upd.sort, upd.before_id, upd.after_id, upd.sessions, upd.treatment_id, id]);
-  for (const m of old) await deleteMedia(m);
-  A.audit(req.user, 'update', 'gallery', id); res.json({ item: galleryView(rows[0]) });
+r.patch('/gallery/:id', A.requireAdmin, galUpload, ah(async (req, res) => {
+  try {
+    const id = int(req.params.id); const { rows: [g] } = await query('SELECT * FROM gallery WHERE id=$1', [id]); if (!g) throw new HttpError(404, 'Not found');
+    const f = req.body; const upd = { title: g.title, treatment_label: g.treatment_label, caption: g.caption, published: g.published, sort: g.sort, before_id: g.before_id, after_id: g.after_id };
+    if (f.title !== undefined) upd.title = str(f.title, 120) || g.title;
+    if (f.treatment !== undefined) upd.treatment_label = str(f.treatment, 120);
+    if (f.caption !== undefined) upd.caption = str(f.caption, 500);
+    upd.sessions = f.sessions !== undefined ? str(f.sessions, 60) : g.sessions;
+    upd.treatment_id = f.treatment_id !== undefined ? (int(f.treatment_id) || null) : g.treatment_id;
+    if (f.published !== undefined) upd.published = bool(f.published);
+    if (f.sort !== undefined) upd.sort = int(f.sort) || 0;
+    const old = [];
+    if (req.files?.before) { old.push(g.before_id); upd.before_id = await saveImage(req.files.before[0].path); }
+    if (req.files?.after) { old.push(g.after_id); upd.after_id = await saveImage(req.files.after[0].path); }
+    const { rows } = await query(`UPDATE gallery SET title=$1, treatment_label=$2, caption=$3, published=$4, sort=$5, before_id=$6, after_id=$7, sessions=$8, treatment_id=$9 WHERE id=$10 RETURNING *`,
+      [upd.title, upd.treatment_label, upd.caption, upd.published, upd.sort, upd.before_id, upd.after_id, upd.sessions, upd.treatment_id, id]);
+    for (const m of old) await deleteMedia(m);
+    A.audit(req.user, 'update', 'gallery', id); res.json({ item: galleryView(rows[0]) });
+  } finally { await removeGalleryTempFiles(req.files); }
 }));
-r.delete('/gallery/:id', ah(async (req, res) => {
+r.delete('/gallery/:id', A.requireAdmin, ah(async (req, res) => {
   const { rows: [g] } = await query('DELETE FROM gallery WHERE id=$1 RETURNING *', [int(req.params.id)]);
   if (g) { await deleteMedia(g.before_id); await deleteMedia(g.after_id); A.audit(req.user, 'delete', 'gallery', g.id, { title: g.title }); }
   res.json({ ok: true });
@@ -431,6 +441,20 @@ r.delete('/users/:id', A.requireAdmin, ah(async (req, res) => {
   await query('DELETE FROM users WHERE id=$1', [int(req.params.id)]); A.audit(req.user, 'delete', 'user', req.params.id); res.json({ ok: true });
 }));
 
-r.get('/audit', A.requireAdmin, ah(async (req, res) => { const { rows } = await query('SELECT * FROM audit_log ORDER BY at DESC LIMIT 300'); res.json({ entries: rows }); }));
+r.get('/audit', A.requireAdmin, ah(async (req, res) => {
+  const filters = [], params = [];
+  if (req.query.action) { params.push(str(req.query.action, 80)); filters.push(`action = $${params.length}`); }
+  if (req.query.q) {
+    params.push(`%${str(req.query.q, 200)}%`);
+    const p = `$${params.length}`;
+    filters.push(`(user_name ILIKE ${p} OR action ILIKE ${p} OR entity ILIKE ${p} OR entity_id ILIKE ${p} OR details::text ILIKE ${p})`);
+  }
+  const where = filters.length ? `WHERE ${filters.join(' AND ')}` : '';
+  const [{ rows }, { rows: actionRows }] = await Promise.all([
+    query(`SELECT * FROM audit_log ${where} ORDER BY at DESC LIMIT 300`, params),
+    query('SELECT DISTINCT action FROM audit_log WHERE action IS NOT NULL ORDER BY action'),
+  ]);
+  res.json({ entries: rows, actions: actionRows.map(row => row.action) });
+}));
 
 module.exports = r;

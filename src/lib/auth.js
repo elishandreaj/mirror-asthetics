@@ -31,8 +31,7 @@ const requireAdmin = (req, res, next) => (req.user?.role === 'admin' ? next() : 
 const hash = pw => bcrypt.hash(pw, 12);
 const verify = (pw, h) => bcrypt.compare(pw, h);
 function checkPassword(pw) {
-  if (typeof pw !== 'string' || pw.length < 10) return 'Password must be at least 10 characters.';
-  if (!/[A-Za-z]/.test(pw) || !/\d/.test(pw)) return 'Password must contain letters and numbers.';
+  if (typeof pw !== 'string' || pw.length < 8) return 'Password must be at least 8 characters.';
   return null;
 }
 async function audit(user, action, entity, entityId, details) {

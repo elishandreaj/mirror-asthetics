@@ -9,13 +9,13 @@ const T = require('./time');
 let transport = null;
 if (config.brevoKey) {
   transport = {
-    async sendMail({ from, to, subject, text, replyTo }) {
+    async sendMail({ from, to, subject, text, html, replyTo }) {
       const m = /^\s*"?([^"<]*)"?\s*<([^>]+)>\s*$/.exec(from || '');
       const sender = m ? { name: m[1].trim() || undefined, email: m[2].trim() } : { email: String(from || '').trim() };
       const res = await fetch('https://api.brevo.com/v3/smtp/email', {
         method: 'POST',
         headers: { 'api-key': config.brevoKey, 'content-type': 'application/json', accept: 'application/json' },
-        body: JSON.stringify({ sender, to: [{ email: to }], subject, textContent: text, ...(replyTo ? { replyTo: { email: replyTo } } : {}) }),
+        body: JSON.stringify({ sender, to: [{ email: to }], subject, textContent: text, htmlContent: html, ...(replyTo ? { replyTo: { email: replyTo } } : {}) }),
       });
       if (!res.ok) throw new Error(`Brevo ${res.status}: ${(await res.text()).slice(0, 300)}`);
     },
@@ -24,6 +24,24 @@ if (config.brevoKey) {
   transport = nodemailer.createTransport({ host: config.smtp.host, port: config.smtp.port, secure: config.smtp.secure, auth: { user: config.smtp.user, pass: config.smtp.pass } });
 }
 const enabled = () => !!transport;
+
+function emailHtml(text, clinicName) {
+  const escapeHtml = value => String(value).replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]);
+  const details = /^(Service|Specialist|Date|Time|Estimated total|Reference code|Ref|Status|Address):\s*(.*)$/i;
+  const signatureNames = [clinicName, 'Mirror Aesthetics'].filter(Boolean);
+  const lines = String(text).split(/\r?\n/);
+  const htmlLines = lines.map(line => {
+    const trimmed = line.trim();
+    if (!trimmed) return '<div style="height:12px;line-height:12px">&nbsp;</div>';
+    if (signatureNames.some(name => trimmed.startsWith(`${name} ·`))) {
+      return `<div style="margin-top:30px;font-size:20px;line-height:1.4;font-weight:700">${escapeHtml(trimmed)}</div>`;
+    }
+    const match = details.exec(trimmed);
+    if (match) return `<div style="margin:5px 0"><strong>${escapeHtml(match[1])}:</strong> <strong>${escapeHtml(match[2])}</strong></div>`;
+    return `<div style="margin:5px 0">${escapeHtml(line)}</div>`;
+  });
+  return `<div style="font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.6;color:#24211f">${htmlLines.join('')}</div>`;
+}
 
 // Fill {placeholders} in a template using booking data
 async function fill(text, b) {
@@ -42,7 +60,7 @@ async function send({ to, subject, text, replyTo }) {
   if (!transport) { console.log(`[mail skipped – email not set up] to=${to} subject="${subject}"`); return false; }
   try {
     const { site } = await settings.getAll();
-    await transport.sendMail({ from: config.smtp.from || config.smtp.user || `"${site.name}" <${site.email}>`, to, subject, text, replyTo: replyTo || site.email });
+    await transport.sendMail({ from: config.smtp.from || config.smtp.user || `"${site.name}" <${site.email}>`, to, subject, text, html: emailHtml(text, site.name), replyTo: replyTo || site.email });
     return true;
   } catch (e) { console.error('Email failed:', e.message); return false; }
 }

@@ -2,7 +2,7 @@
 const { query, tx } = require('./db');
 const D = require('./defaults');
 const config = require('./config');
-const { hash } = require('./lib/auth');
+const { hash, checkPassword } = require('./lib/auth');
 
 async function seedContent() {
   const { rows } = await query('SELECT count(*)::int n FROM categories');
@@ -32,6 +32,8 @@ async function seedAdmin() {
     console.warn('No users yet. Set ADMIN_EMAIL and ADMIN_PASSWORD env vars (or run `npm run create-admin`) to create the first admin.');
     return false;
   }
+  const passwordError = checkPassword(config.admin.password);
+  if (passwordError) throw new Error(`ADMIN_PASSWORD ${passwordError}`);
   await query('INSERT INTO users(email, name, role, password_hash) VALUES ($1,$2,$3,$4)', [config.admin.email.toLowerCase(), config.admin.name, 'admin', await hash(config.admin.password)]);
   console.log(`Created first admin account: ${config.admin.email}`);
   return true;
