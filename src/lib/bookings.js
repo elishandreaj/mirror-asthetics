@@ -58,10 +58,10 @@ async function create({ type, treatmentIds, practitionerId, date, start, client,
     } else if (prac === 'any') prac = null;
     let code; for (;;) { code = newCode(); const { rowCount } = await db.query('SELECT 1 FROM bookings WHERE code=$1', [code]); if (!rowCount) break; }
     const { rows } = await db.query(
-      `INSERT INTO bookings(code, type, practitioner_id, date, start_min, duration_min, total_min, price, status, source,
+      `INSERT INTO bookings(code, type, practitioner_id, date, start_min, duration_min, total_min, price, status, completed_at, source,
          client_name, client_phone, client_phone_norm, client_email, client_age, concerns, allergies, pregnant, medications, notes,
          photo_id, staff_notes, consent_at)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23) RETURNING id`,
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,CASE WHEN $9='completed' THEN now() END,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23) RETURNING id`,
       [code, type, prac, date, startMin, svc.duration, svc.duration + cfg.buffer, svc.price, status, source,
         client.name, client.phone, normPhone(client.phone), client.email || '', client.age, client.concerns || '', client.allergies || '',
         client.pregnant || '', client.medications || '', client.notes || '', photoId, staffNotes, opts.staff ? null : new Date()]);

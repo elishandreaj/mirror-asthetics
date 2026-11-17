@@ -100,6 +100,7 @@ const NAV = [
   ['grp', 'Website'], ['gallery', 'Results photos', 'gallery'], ['treatments', 'Treatments & prices', 'treatments', 1], ['team', 'Team', 'team', 1], ['content', 'Promos, reviews & FAQ', 'content', 1], ['site', 'Clinic info & settings', 'site', 1],
   ['grp', 'Admin'], ['users', 'Staff accounts', 'users', 1], ['audit', 'Activity log', 'audit', 1], ['account', 'My password', 'account'],
 ];
+const STAFF_VIEWS = new Set(['dashboard', 'bookings', 'calendar', 'new', 'blocks']);
 const TITLES = Object.fromEntries(NAV.filter(n => n[0] !== 'grp').map(n => [n[0], n[1]]));
 function shell() {
   const isAdmin = ME.role === 'admin';
@@ -108,7 +109,7 @@ function shell() {
     <aside class="sb" aria-label="Dashboard menu">
       <div class="sb-top"><span class="mono">M</span><span class="sb-name"><b>Mirror</b><i>Aesthetics</i></span>
         <button class="collapse-btn" id="collapse" aria-label="${collapsed ? 'Expand' : 'Collapse'} menu" title="${collapsed ? 'Expand' : 'Collapse'} menu"><span class="collapse-ic">${ic('collapse')}</span></button></div>
-      <nav>${NAV.filter(n => !n[3] || isAdmin).map(n => n[0] === 'grp' ? `<div class="grp">${n[1]}</div>`
+      <nav>${NAV.filter(n => isAdmin || STAFF_VIEWS.has(n[0])).map(n => n[0] === 'grp' ? `<div class="grp">${n[1]}</div>`
         : `<button data-v="${n[0]}" title="${esc(n[1])}">${ic(n[2])}<span class="lbl">${n[1]}</span>${n[0] === 'bookings' ? '<span class="badge hide" id="pendBadge"></span>' : ''}</button>`).join('')}</nav>
       <div class="sb-foot"><div class="me"><span class="av">${esc(ME.name.split(' ').map(w => w[0]).slice(0, 2).join(''))}</span><div><b>${esc(ME.name)}</b><small>${esc(ME.role)}</small></div>
         <button class="logout-btn" id="logout" aria-label="Log out" title="Log out">${ic('logout')}</button></div></div>
@@ -129,7 +130,7 @@ function shell() {
 }
 function setBadge(n) { const b = $('#pendBadge'); if (!b) return; b.textContent = n; b.classList.toggle('hide', !n); b.parentElement.classList.toggle('has-badge', !!n); }
 function go(v) {
-  if (!VIEWS[v] || (NAV.find(n => n[0] === v)?.[3] && ME.role !== 'admin')) v = 'dashboard';
+  if (!VIEWS[v] || (ME.role !== 'admin' && !STAFF_VIEWS.has(v))) v = 'dashboard';
   VIEW = v; history.replaceState(null, '', '#' + v);
   $$('.sb nav [data-v]').forEach(b => b.classList.toggle('on', b.dataset.v === v));
   $('#crumb').textContent = TITLES[v] || '';
@@ -152,7 +153,6 @@ function bookingTable(list, emptyMsg) {
   ${list.map(b => `<tr class="click" data-open="${b.id}"><td>${fmtDate(b.date)}</td><td>${fmtTime(b.start)}</td><td><b>${esc(b.client)}</b><br><span class="mini">${esc(b.code)} · ${esc(b.phone)}</span></td>
    <td>${esc(b.service)}</td><td>${esc(b.practitioner || '—')}</td><td>${stBadge(b.status)}</td></tr>`).join('')}</tbody></table></div>`;
 }
-const fromFull = b => ({ id: b.id, code: b.code, date: b.date, start: b.start_min, client: b.client_name, phone: b.client_phone, service: b.service, practitioner: b.practitioner_name, status: b.status });
 function wireOpen(root, after) { $$('[data-open]', root).forEach(r => r.onclick = () => openBooking(Number(r.dataset.open), after)); }
 
 async function openBooking(id, after) {
@@ -161,11 +161,9 @@ async function openBooking(id, after) {
   await Promise.all([loadSettings(), completed ? Promise.resolve() : loadPracs()]);
   const d = drawer(b.client_name, '');
   const refresh = () => { d.close(); after && after(); quiet(api('/dashboard').then(x => setBadge(x.counts.pending))); openBooking(id, after); };
-  const canMail = EMAIL_ON && b.client_email;
   const statusControls = completed
     ? '<p class="note">This booking is completed and locked. Its details, status, and schedule can no longer be changed.</p>'
-    : `<h4>Update status</h4><div class="toolbar">${STATUSES.filter(s => s !== b.status).map(s => `<button class="btn sm ${['cancelled', 'noshow'].includes(s) ? 'line' : ''}" data-st="${s}">${s === 'confirmed' ? 'Confirm' : 'Mark ' + stLabel(s)}</button>`).join('')}</div>
-      <label class="chk"><input type="checkbox" id="notify" ${canMail ? 'checked' : 'disabled'}><span>Email the client about this change ${EMAIL_ON ? (b.client_email ? '' : '(no email on file)') : '(email not set up yet)'}</span></label>`;
+    : `<h4>Update status</h4><div class="toolbar">${STATUSES.filter(s => s !== b.status).map(s => `<button class="btn sm ${['cancelled', 'noshow'].includes(s) ? 'line' : ''}" data-st="${s}">${s === 'confirmed' ? 'Confirm' : 'Mark ' + stLabel(s)}</button>`).join('')}</div>`;
   const clientEdit = completed ? '' : '<div style="margin-top:12px"><button class="btn sm line" id="editClient">Edit details</button></div>';
   const staffNotes = completed
     ? `<p class="note">${esc(b.staff_notes || 'No staff notes.')}</p>`
@@ -187,21 +185,15 @@ async function openBooking(id, after) {
     ${clientEdit}</div>
    <h4>Staff notes (private)</h4>${staffNotes}
    ${reschedule}
-   <h4>Send a message</h4><div class="toolbar"><select id="tplSel" class="grow">${SETTINGS.templates.map(x => `<option value="${x.key}">${esc(x.name)}</option>`).join('')}</select>
-    <button class="btn sm line" id="copyMsg">Copy</button>${canMail ? '<button class="btn sm" id="mailMsg">Email it</button>' : ''}</div><pre class="tpl" id="msgPrev"></pre>
    ${ME.role === 'admin' ? `<h4 class="danger-text">Delete</h4><p class="mini">Permanently removes this booking and the client's health information – use for data-deletion requests. To cancel, use "Mark cancelled".</p><button class="btn sm danger" id="delB" style="margin-top:8px">Delete permanently</button>` : ''}`;
   if (!completed) {
-    $$('[data-st]', d.el).forEach(x => x.onclick = async () => { await run(() => api('/bookings/' + id, { method: 'PATCH', body: { status: x.dataset.st, notify: $('#notify', d.el).checked } }), 'Status updated'); refresh(); });
+    $$('[data-st]', d.el).forEach(x => x.onclick = async () => { await run(() => api('/bookings/' + id, { method: 'PATCH', body: { status: x.dataset.st } }), 'Status updated'); refresh(); });
     $('#saveNotes', d.el).onclick = () => run(() => api('/bookings/' + id, { method: 'PATCH', body: { staff_notes: $('#snotes', d.el).value } }), 'Notes saved');
     $('#editClient', d.el).onclick = () => editClient(b, refresh);
     slotPicker($('#rsBox', d.el), { bookingId: id, date: b.date, prac: b.practitioner_id, current: b.start_min, label: 'Move booking', onPick: async (date, start, prac, force) => {
-      await run(() => api(`/bookings/${id}/reschedule`, { method: 'POST', body: { date, start, prac, force, notify: $('#notify', d.el).checked } }), 'Booking moved'); refresh();
+      await run(() => api(`/bookings/${id}/reschedule`, { method: 'POST', body: { date, start, prac, force } }), 'Booking moved'); refresh();
     } });
   }
-  const prev = async () => { const r = await run(() => api(`/bookings/${id}/message/${$('#tplSel', d.el).value}`)); $('#msgPrev', d.el).textContent = r.body; return r; };
-  $('#tplSel', d.el).onchange = prev; quiet(prev());
-  $('#copyMsg', d.el).onclick = async () => { const r = await prev(); try { await navigator.clipboard.writeText(r.body); toast('Copied – paste it into SMS, Viber or Messenger'); } catch { toast('Select the text and copy it manually.'); } };
-  if ($('#mailMsg', d.el)) $('#mailMsg', d.el).onclick = () => run(() => api(`/bookings/${id}/email/${$('#tplSel', d.el).value}`, { method: 'POST' }), 'Email sent');
   if ($('#delB', d.el)) $('#delB', d.el).onclick = async () => { if (!confirm(`Delete booking ${b.code} permanently? This cannot be undone.`)) return; await run(() => api('/bookings/' + id, { method: 'DELETE' }), 'Booking deleted'); d.close(); after && after(); };
 }
 function clientFields(c = {}) {
@@ -262,7 +254,7 @@ VIEWS.dashboard = async el => {
    <div class="stats"><div class="stat"><b>${d.counts.today}</b><span>Appointments today</span></div><div class="stat ${d.counts.pending ? 'alert' : ''}"><b>${d.counts.pending}</b><span>Waiting for confirmation</span></div>
    <div class="stat"><b>${d.counts.week}</b><span>Next 7 days</span></div><div class="stat"><b>${d.counts.new24}</b><span>New in the last 24 hours</span></div></div>
    ${d.counts.pending ? `<div class="note" style="margin-top:16px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap"><span>${d.counts.pending} booking(s) are waiting for you to confirm.</span><button class="btn sm" id="seePending">Review now</button></div>` : ''}
-   ${EMAIL_ON ? '' : '<div class="note" style="margin-top:12px">Automatic emails are off, so clients don\'t get email confirmations yet. Use "Copy" in a booking to send by SMS/Viber, or set up email (see Clinic info & settings).</div>'}
+   ${EMAIL_ON ? '' : '<div class="note" style="margin-top:12px">Email delivery is not configured. Booking updates, aftercare and follow-up emails cannot be sent.</div>'}
    <h3 style="margin:28px 0 12px;font-size:1.5rem">Today's schedule</h3>${bookingTable(d.today.map(fromFull), 'No appointments today.')}`;
   wireOpen(el, () => VIEWS.dashboard(el));
   if ($('#seePending', el)) $('#seePending', el).onclick = () => { Object.assign(BK, { status: 'pending', from: today(), to: '' }); go('bookings'); };
@@ -324,15 +316,14 @@ VIEWS.new = async el => {
    <div class="box"><h3>2 · Client</h3><form id="nf">${clientFields()}
     <div class="row2"><div><label class="f">How they booked</label><select id="n_src"><option value="phone">Phone</option><option value="walk-in">Walk-in</option><option value="messenger">Messenger / Viber</option><option value="admin">Other</option></select></div>
     <div><label class="f">Status</label><select id="n_st"><option value="confirmed">Confirmed</option><option value="pending">Pending</option></select></div></div>
-    <label class="f">Staff notes</label><textarea id="n_notes"></textarea>
-    <label class="chk"><input type="checkbox" id="n_notify" ${EMAIL_ON ? '' : 'disabled'}><span>Email a confirmation to the client ${EMAIL_ON ? '' : '(email not set up yet)'}</span></label></form></div>
+    <label class="f">Staff notes</label><textarea id="n_notes"></textarea></form></div>
    <div class="box"><h3>3 · Date &amp; time</h3><div id="nslot"></div></div>`;
   $$('input[name=nt]', el).forEach(r => r.onchange = () => { const t = $('input[name=nt]:checked', el).value; $('#ntp', el).classList.toggle('hide', t === 'consult'); $('#ntq', el).classList.toggle('hide', t === 'consult'); });
   $('#ntq', el).oninput = e => { const q = e.target.value.toLowerCase(); $$('#ntp .opt', el).forEach(o => o.classList.toggle('hide', !!q && !o.dataset.name.includes(q))); $$('#ntp details', el).forEach(dd => { dd.open = !!q && $$('.opt:not(.hide)', dd).length > 0; dd.classList.toggle('hide', !!q && !$$('.opt:not(.hide)', dd).length); }); };
   const services = () => { const type = $('input[name=nt]:checked', el).value; return { type, treatmentIds: type === 'treatment' ? $$('#ntp input:checked', el).map(i => Number(i.value)) : [] }; };
   slotPicker($('#nslot', el), { getServices: services, label: 'Create booking', onPick: async (date, start, prac, force) => {
     try {
-      const { booking } = await api('/bookings', { method: 'POST', body: { ...services(), date, start, prac, force, client: readClient(el), source: fv(el, 'n_src'), status: fv(el, 'n_st'), staffNotes: fv(el, 'n_notes'), notify: fv(el, 'n_notify') } });
+      const { booking } = await api('/bookings', { method: 'POST', body: { ...services(), date, start, prac, force, client: readClient(el), source: fv(el, 'n_src'), status: fv(el, 'n_st'), staffNotes: fv(el, 'n_notes') } });
       toast(`Booking ${booking.code} created`); go('bookings'); openBooking(booking.id);
     } catch (er) { showFieldErrors(el, er); }
   } });
@@ -536,16 +527,13 @@ VIEWS.site = async el => {
   const sw = (id, title, text, on) => `<div class="setting-row"><div><b>${title}</b><p>${text}</p></div><label class="toggle"><input type="checkbox" id="${id}" ${on ? 'checked' : ''} aria-label="${esc(title)}"><span></span></label></div>`;
   const h4 = t => `<h4 style="font:600 .68rem var(--sans);letter-spacing:.16em;text-transform:uppercase;color:var(--muted);margin:22px 0 0">${t}</h4>`;
   el.innerHTML = `
-   <div class="box"><h3>Email</h3>${EMAIL_ON ? `<p class="mini" style="margin-bottom:10px"><span class="pill2">Connected</span> Clients get automatic emails when they book, when you confirm, move or cancel, and a reminder the day before.</p>
-      <div class="toolbar"><input type="email" id="te_to" class="grow" placeholder="Send a test to…" value="${esc(ME.email)}"><button class="btn sm" id="te_go">Send test email</button></div>`
-    : `<p class="mini"><span class="pill2 off">Not set up</span> To send automatic emails, add <b>BREVO_API_KEY</b> and <b>MAIL_FROM</b> in your hosting settings (Render → Environment) – see the setup guide. Until then, use "Copy" in a booking to send messages by SMS/Viber.</p>`}</div>
    <div class="box"><h3>Booking rules</h3>
     ${sw('b_on', 'Online booking', 'Turn off to pause online bookings (e.g. during a closure).', bk.onlineBookingEnabled)}
     ${sw('b_auto', 'Confirm online bookings automatically', 'On: clients are confirmed straight away and get a confirmation email. Off: bookings stay "pending" until staff review the intake form.', bk.autoConfirm)}
     <div class="row3"><div>${inp('b_oh', 'Opens at (hour, 0–23)', bk.openHour, 'number')}</div><div>${inp('b_ch', 'Closes at (hour, 1–24)', bk.closeHour, 'number')}</div><div>${inp('b_ss', 'Start times every (minutes)', bk.slotStep, 'number')}</div></div>
     <div class="row3"><div>${inp('b_bf', 'Cleaning time after each appointment (min)', bk.buffer, 'number')}</div><div>${inp('b_mn', 'Earliest online booking (minutes from now)', bk.minNoticeMin, 'number')}</div><div>${inp('b_cx', 'Clients can change up to (hours before)', bk.cancelHours, 'number')}</div></div>
     <div class="row3"><div>${inp('b_ad', 'Book up to (days ahead)', bk.maxAdvanceDays, 'number')}</div></div>
-    <label class="f">Closed every</label><div class="toolbar">${DAYS.map((d, i) => `<label class="chk" style="margin:0 12px 0 0"><input type="checkbox" class="b_cd" value="${i}" ${bk.closedDays.includes(i) ? 'checked' : ''}><span>${d}</span></label>`).join('')}</div>
+    <label class="f">Closed every</label><div class="closed-days">${DAYS.map((d, i) => `<label class="chk"><input type="checkbox" class="b_cd" value="${i}" ${bk.closedDays.includes(i) ? 'checked' : ''}><span>${d}</span></label>`).join('')}</div>
     <div class="row3"><div>${inp('b_cl', 'Consultation name', bk.consult.label)}</div><div>${inp('b_cd', 'Consultation length (min)', bk.consult.duration, 'number')}</div><div>${inp('b_cp', 'Consultation price ₱ (0 = free)', bk.consult.price, 'number')}</div></div>
     ${inp('b_cdesc', 'Consultation description', bk.consult.description)}
     <div class="nav-row"><span></span><button class="btn" id="saveBk">Save booking rules</button></div></div>
@@ -594,12 +582,11 @@ VIEWS.site = async el => {
   $('#saveTp', el).onclick = () => run(() => api('/settings/templates', { method: 'PUT', body: s.templates.map((x, i) => ({ ...x, subject: fv(el, 'tp_s' + i), body: fv(el, 'tp_b' + i) })) }), 'Templates saved');
   $('#h_up', el).onclick = async () => { const f = $('#h_img', el).files[0]; if (!f) return toast('Choose a photo first', true); const fd = new FormData(); fd.append('photo', f); await run(() => api('/site-image', { method: 'POST', form: fd }), 'Hero photo updated'); VIEWS.site(el); };
   if ($('#h_rm', el)) $('#h_rm', el).onclick = async () => { await run(() => api('/site-image', { method: 'DELETE' }), 'Removed'); VIEWS.site(el); };
-  if ($('#te_go', el)) $('#te_go', el).onclick = async () => { const r = await run(() => api('/test-email', { method: 'POST', body: { to: fv(el, 'te_to') } })); toast('Test email sent to ' + r.to + ' – check the inbox (and spam).'); };
 };
 
 VIEWS.users = async el => {
   const { users } = await run(() => api('/users'));
-  el.innerHTML = `<div class="toolbar" style="justify-content:space-between"><p class="sub" style="margin:0"><b>Staff</b> handle bookings, blocked times and results photos. <b>Admins</b> can also change prices, website text, settings and accounts.</p><button class="btn" id="addU">${ic('plus')}Add account</button></div>
+  el.innerHTML = `<div class="toolbar" style="justify-content:flex-end"><button class="btn" id="addU">${ic('plus')}Add account</button></div>
    <div class="box tw" style="padding:4px 8px"><table class="t"><thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Status</th><th>Last sign-in</th></tr></thead><tbody>
    ${users.map(u => `<tr class="click" data-eu="${u.id}"><td><b>${esc(u.name)}</b></td><td>${esc(u.email)}</td><td style="text-transform:capitalize">${u.role}</td><td>${u.active ? '<span class="pill2">Active</span>' : '<span class="pill2 off">Disabled</span>'}</td><td>${u.last_login_at ? new Date(u.last_login_at).toLocaleString('en-PH') : '—'}</td></tr>`).join('')}</tbody></table></div>`;
   const edit = u => {
@@ -607,7 +594,7 @@ VIEWS.users = async el => {
     const d = drawer(u.id ? 'Edit account' : 'Add account', `<label class="f" style="margin-top:0">Name *</label><input type="text" id="u_n" value="${esc(u.name)}">
       <label class="f">Email *</label><input type="email" id="u_e" value="${esc(u.email)}" ${u.id ? 'disabled' : ''}>
       <label class="f">Role</label><select id="u_r"><option value="staff">Staff</option><option value="admin" ${u.role === 'admin' ? 'selected' : ''}>Admin</option></select>
-      <label class="f">${u.id ? 'New password (leave blank to keep)' : 'Password *'} <span class="mini">10+ characters, letters and numbers</span></label><input type="password" id="u_p" autocomplete="new-password">
+      <label class="f">${u.id ? 'New password (leave blank to keep)' : 'Password *'} <span class="mini">At least 8 characters</span></label><input type="password" id="u_p" autocomplete="new-password" minlength="8">
       ${u.id ? `<label class="chk"><input type="checkbox" id="u_a" ${u.active ? 'checked' : ''}><span>Account active (untick when someone leaves)</span></label>` : ''}
       <div class="nav-row">${u.id && u.id !== ME.id ? '<button class="btn sm danger" id="u_del">Delete</button>' : '<span></span>'}<button class="btn" id="u_go">Save</button></div>`);
     $('#u_go', d.el).onclick = async () => {
@@ -621,14 +608,24 @@ VIEWS.users = async el => {
 };
 
 VIEWS.audit = async el => {
-  const { entries } = await run(() => api('/audit'));
-  el.innerHTML = `<p class="sub">The last 300 changes made in the dashboard.</p><div class="box tw" style="padding:4px 8px"><table class="t"><thead><tr><th>When</th><th>Who</th><th>Action</th><th>What</th></tr></thead><tbody>
-   ${entries.map(a => `<tr><td style="white-space:nowrap">${new Date(a.at).toLocaleString('en-PH')}</td><td>${esc(a.user_name)}</td><td>${esc(a.action)}</td><td>${esc(a.entity || '')} ${esc(a.entity_id || '')}<br><span class="mini">${esc(a.details ? JSON.stringify(a.details) : '')}</span></td></tr>`).join('') || '<tr><td colspan="4" class="empty">Nothing yet.</td></tr>'}</tbody></table></div>`;
+  const initial = await run(() => api('/audit'));
+  const { actions } = initial;
+  el.innerHTML = `<form id="auditFilter" class="toolbar"><input class="grow" type="search" id="auditQ" placeholder="Search activity"><select id="auditAction"><option value="">All actions</option>${actions.map(a => `<option value="${esc(a)}">${esc(a)}</option>`).join('')}</select><button class="btn sm">Search</button></form>
+   <div class="box tw" style="padding:4px 8px"><table class="t"><thead><tr><th>When</th><th>Who</th><th>Action</th><th>What</th></tr></thead><tbody id="auditRows"><tr><td colspan="4" class="empty">Loading…</td></tr></tbody></table></div>`;
+  const loadEntries = async result => {
+    const params = new URLSearchParams();
+    if (fv(el, 'auditQ').trim()) params.set('q', fv(el, 'auditQ').trim());
+    if (fv(el, 'auditAction')) params.set('action', fv(el, 'auditAction'));
+    const { entries } = result || await run(() => api('/audit?' + params.toString()));
+    $('#auditRows', el).innerHTML = entries.map(a => `<tr><td style="white-space:nowrap">${new Date(a.at).toLocaleString('en-PH')}</td><td>${esc(a.user_name)}</td><td>${esc(a.action)}</td><td>${esc(a.entity || '')} ${esc(a.entity_id || '')}<br><span class="mini">${esc(a.details ? JSON.stringify(a.details) : '')}</span></td></tr>`).join('') || '<tr><td colspan="4" class="empty">No matching activity.</td></tr>';
+  };
+  $('#auditFilter', el).onsubmit = event => { event.preventDefault(); loadEntries(); };
+  loadEntries(initial);
 };
 
 VIEWS.account = el => {
   el.innerHTML = `<div class="box" style="max-width:480px"><h3>Change your password</h3><label class="f">Current password</label><input type="password" id="pw0" autocomplete="current-password">
-   <label class="f">New password <span class="mini">10+ characters, letters and numbers</span></label><input type="password" id="pw1" autocomplete="new-password">
+   <label class="f">New password <span class="mini">At least 8 characters</span></label><input type="password" id="pw1" autocomplete="new-password" minlength="8">
    <label class="f">Repeat new password</label><input type="password" id="pw2" autocomplete="new-password"><div class="nav-row"><span></span><button class="btn" id="pwgo">Change password</button></div></div>`;
   $('#pwgo', el).onclick = async () => {
     if (fv(el, 'pw1') !== fv(el, 'pw2')) return toast('New passwords do not match', true);

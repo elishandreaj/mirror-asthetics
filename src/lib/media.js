@@ -1,21 +1,27 @@
 // Image uploads: resized with sharp, stored in the `media` table (Postgres).
 const crypto = require('crypto');
+const os = require('os');
 const multer = require('multer');
 const sharp = require('sharp');
 const config = require('../config');
 const { query } = require('../db');
 const { HttpError } = require('./util');
 
-const upload = multer({
-  storage: multer.memoryStorage(),
-  limits: { fileSize: config.maxUploadMb * 1024 * 1024, files: 4 },
-  fileFilter: (req, file, cb) => cb(/^image\/(jpeg|png|webp|heic|heif|gif)$/i.test(file.mimetype) ? null : new HttpError(400, 'Only image files (JPG, PNG, WEBP, HEIC) are allowed.'), true),
+const imageFileFilter = (req, file, cb) => cb(/^image\/(jpeg|png|webp|heic|heif|gif)$/i.test(file.mimetype) ? null : new HttpError(400, 'Only image files (JPG, PNG, WEBP, HEIC) are allowed.'), true);
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: config.maxUploadMb * 1024 * 1024, files: 4 }, fileFilter: imageFileFilter });
+const galleryUpload = multer({
+  storage: multer.diskStorage({
+    destination: os.tmpdir(),
+    filename: (_req, _file, cb) => cb(null, `mirror-gallery-${crypto.randomUUID()}`),
+  }),
+  limits: { files: 2 },
+  fileFilter: imageFileFilter,
 });
 
-async function saveImage(buffer, { maxSize = 1600, isPrivate = false, db = { query } } = {}) {
+async function saveImage(input, { maxSize = 1600, isPrivate = false, db = { query } } = {}) {
   let img;
   try {
-    img = await sharp(buffer, { failOn: 'error' }).rotate() // respect phone orientation, strips EXIF/GPS
+    img = await sharp(input, { failOn: 'error' }).rotate() // respect phone orientation, strips EXIF/GPS
       .resize({ width: maxSize, height: maxSize, fit: 'inside', withoutEnlargement: true })
       .webp({ quality: 82 }).toBuffer({ resolveWithObject: true });
   } catch (e) { throw new HttpError(400, 'That image could not be read. Please try a JPG or PNG.'); }
@@ -28,4 +34,4 @@ async function saveImage(buffer, { maxSize = 1600, isPrivate = false, db = { que
 async function deleteMedia(id, db = { query }) { if (id) await db.query('DELETE FROM media WHERE id = $1', [id]); }
 
 const mediaUrl = id => (id ? `/media/${id}` : null);
-module.exports = { upload, saveImage, deleteMedia, mediaUrl };
+module.exports = { upload, galleryUpload, saveImage, deleteMedia, mediaUrl };
