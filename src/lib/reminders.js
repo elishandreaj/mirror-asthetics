@@ -1,18 +1,20 @@
-// Periodic mail jobs: appointment reminders, aftercare after completion, and follow-up after three days.
+// Periodic mail jobs: appointment reminders, aftercare after completion, and delayed follow-up.
 const { query } = require('../db');
 const B = require('./bookings');
 const mailer = require('./mailer');
+const settings = require('./settings');
 const T = require('./time');
 
 let completionEmailRun = null;
 async function processCompletionEmails() {
   if (!mailer.enabled()) return 0;
+  const { followupDelayDays } = await settings.get('booking');
   const { rows } = await query(`SELECT id, aftercare_sent_at, followup_sent_at,
-      (completed_at <= now() - interval '3 days') AS followup_due
+      (completed_at <= now() - make_interval(days => $1::int)) AS followup_due
     FROM bookings
     WHERE status = 'completed' AND completed_at IS NOT NULL AND client_email <> ''
-      AND (aftercare_sent_at IS NULL OR (completed_at <= now() - interval '3 days' AND followup_sent_at IS NULL))
-    ORDER BY completed_at LIMIT 100`);
+      AND (aftercare_sent_at IS NULL OR (completed_at <= now() - make_interval(days => $1::int) AND followup_sent_at IS NULL))
+    ORDER BY completed_at LIMIT 100`, [followupDelayDays]);
   let sentCount = 0;
   for (const row of rows) {
     const b = await B.getById(row.id);

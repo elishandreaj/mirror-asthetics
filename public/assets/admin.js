@@ -556,7 +556,10 @@ VIEWS.site = async el => {
     ${ta('s_pre', 'Before-your-visit tips (one per line)', site.preTreatment.join('\n'), 140)}${ta('s_priv', 'Privacy policy', site.privacyText, 200)}
     <div class="nav-row"><span></span><button class="btn" id="saveSite">Save clinic info</button></div></div>
    <div class="box"><h3>Message templates</h3><p class="mini">Placeholders: {name} {code} {service} {specialist} {date} {time} {status} {total} {clinic_phone} {clinic_address} {cancel_hours} {manage_link} {site_link}</p>
-    ${s.templates.map((x, i) => `${h4(esc(x.key === 'followup' ? 'Follow-up & review request (automatically sent 3 days after completion)' : x.name))}${inp('tp_s' + i, 'Subject', x.subject)}${ta('tp_b' + i, 'Message', x.body, 150)}`).join('')}
+    ${h4('Follow-up & review request') }<label class="f" for="followupDays">Automatically send this email how many days after a booking is marked completed?</label>
+    <select id="followupDays">${Array.from({ length: 30 }, (_, i) => i + 1).map(days => `<option value="${days}" ${days === (s.booking.followupDelayDays || 3) ? 'selected' : ''}>${days} ${days === 1 ? 'day' : 'days'} after completion</option>`).join('')}</select>
+    <div class="nav-row"><span></span><button class="btn line" id="saveFollowup">Save follow-up timing</button></div>
+    ${s.templates.map((x, i) => `${h4(esc(x.key === 'followup' ? 'Follow-up & review request email' : x.key === 'aftercare' ? 'Post-treatment aftercare email' : x.name))}${inp('tp_s' + i, 'Subject', x.subject)}${ta('tp_b' + i, 'Message', x.body, 150)}`).join('')}
     <div class="nav-row"><span></span><button class="btn" id="saveTp">Save templates</button></div></div>`;
   wireDrops(el);
   const v = id => fv(el, id);
@@ -581,6 +584,11 @@ VIEWS.site = async el => {
       cancelHours: n('b_cx'), maxAdvanceDays: n('b_ad'), closedDays: $$('.b_cd:checked', el).map(x => Number(x.value)), consult: { label: fv(el, 'b_cl'), duration: n('b_cd'), price: n('b_cp'), description: fv(el, 'b_cdesc') } } }), 'Booking rules saved');
   };
   $('#saveTp', el).onclick = () => run(() => api('/settings/templates', { method: 'PUT', body: s.templates.map((x, i) => ({ ...x, subject: fv(el, 'tp_s' + i), body: fv(el, 'tp_b' + i) })) }), 'Templates saved');
+  $('#saveFollowup', el).onclick = async () => {
+    const updated = { ...s.booking, followupDelayDays: Number(fv(el, 'followupDays')) };
+    const saved = await run(() => api('/settings/booking', { method: 'PUT', body: updated }), 'Follow-up timing saved');
+    SETTINGS = { ...s, booking: saved.value };
+  };
   $('#h_up', el).onclick = async () => { const f = $('#h_img', el).files[0]; if (!f) return toast('Choose a photo first', true); const fd = new FormData(); fd.append('photo', f); await run(() => api('/site-image', { method: 'POST', form: fd }), 'Hero photo updated'); VIEWS.site(el); };
   if ($('#h_rm', el)) $('#h_rm', el).onclick = async () => { await run(() => api('/site-image', { method: 'DELETE' }), 'Removed'); VIEWS.site(el); };
 };

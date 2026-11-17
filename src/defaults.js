@@ -59,6 +59,7 @@ const booking = {
   maxAdvanceDays: 60,               // how far ahead customers can book
   onlineBookingEnabled: true,
   autoConfirm: false,               // true = online bookings are confirmed instantly (no staff review)
+  followupDelayDays: 3,
   consult: { label: 'Consultation', duration: 30, price: 0, description: 'Skin assessment and treatment plan. Best for first-timers.' },
 };
 
@@ -73,9 +74,9 @@ const templates = [
     body: 'Hi {name}, your booking {code} is now on {date} at {time} with {specialist}. Status: {status}.\n\nMirror Aesthetics · {clinic_phone}' },
   { key: 'cancelled', name: 'Booking cancelled (auto-email)', subject: 'Your booking {code} was cancelled',
     body: 'Hi {name}, your booking {code} for {date} at {time} has been cancelled. We hope to see you soon – book again anytime at {site_link}.' },
-  { key: 'aftercare', name: 'Post-treatment aftercare (copy & send)', subject: 'Aftercare tips from Mirror Aesthetics',
+  { key: 'aftercare', name: 'Post-treatment aftercare (automatically sent when marked completed)', subject: 'Aftercare tips from Mirror Aesthetics',
     body: 'Thank you for visiting, {name}! Aftercare: wear SPF 30+, avoid hot showers/saunas for 24h, skip retinol and exfoliants for 3 days, and keep skin moisturised. Questions? {clinic_phone}.' },
-  { key: 'followup', name: 'Follow-up & review request (automatically sent 3 days after completion)', subject: 'How is your skin feeling?',
+  { key: 'followup', name: 'Follow-up & review request (automatic timing set in settings)', subject: 'How is your skin feeling?',
     body: 'Hi {name}, how is your skin feeling? We\'d love your feedback — a quick review helps others find us. Book your next session anytime: {site_link}' },
 ];
 

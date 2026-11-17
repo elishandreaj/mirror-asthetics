@@ -148,7 +148,7 @@ em,.it{font-style:italic}
 .sig h3{font-size:clamp(1.4rem,3vw,1.9rem)}
 .sig p{color:var(--muted);font-size:.93rem;margin-top:4px}
 .sig .pr{text-align:right;font-size:.9rem;color:var(--ink-2);white-space:nowrap}
-.sig .pr b{display:block;font:600 1.55rem var(--serif);color:var(--ink)}
+.sig .pr b{display:block;font:700 1.7rem var(--serif);color:var(--ink)}
 @media(max-width:560px){.sig a{grid-template-columns:auto 1fr}.sig .pr{grid-column:2;text-align:left}.sig .pr b{display:inline;margin-right:6px}}
 
 /* offers */
@@ -209,7 +209,7 @@ em,.it{font-style:italic}
 .trow h3{font:500 1.25rem var(--serif)}
 .trow p{color:var(--muted);font-size:.92rem;margin-top:2px}
 .trow .side{display:flex;align-items:center;gap:18px;justify-content:flex-end}
-.trow .price{font:600 1.55rem var(--serif);white-space:nowrap}
+.trow .price{font:700 1.65rem var(--serif);white-space:nowrap}
 .trow .price small{font:500 .72rem var(--sans);letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-right:6px}
 .tcat-body .pad{height:14px}
 @media(max-width:640px){.trow{grid-template-columns:1fr;padding-left:4px}.trow .side{justify-content:space-between}.tcat-head .num{display:none}}
@@ -350,7 +350,7 @@ input.bad,textarea.bad,select.bad{border-color:var(--danger)}
 .done-head .seal{width:64px;height:64px;border-radius:50%;margin:0 auto 14px;display:grid;place-items:center;background:var(--sage-soft);color:var(--sage)}
 .done-head .seal .icon{width:30px;height:30px}
 .st{display:inline-block;font-size:.72rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;padding:4px 10px;border-radius:3px}
-.st.pending{background:#FBEFD2;color:#6b4d00}.st.confirmed{background:#DDEBDF;color:#22492d}.st.completed{background:#E1E7F1;color:#243a63}.st.cancelled{background:#F4DCD8;color:#7a2a22}.st.noshow{background:#EAE2EE;color:#4b2f66}
+.st.pending{background:#FBEFD2;color:#6b4d00}.st.confirmed{background:#DDEBDF;color:#22492d;font-weight:800}.st.completed{background:#E1E7F1;color:#243a63}.st.cancelled{background:#F4DCD8;color:#7a2a22}.st.noshow{background:#EAE2EE;color:#4b2f66}
 .side-card h4{font:600 .72rem var(--sans);letter-spacing:.18em;text-transform:uppercase;color:var(--muted);margin-bottom:12px}
 .side-card ul{list-style:none;padding:0}
 .side-card li{display:flex;gap:10px;padding:8px 0;font-size:.9rem;color:var(--ink-2)}
